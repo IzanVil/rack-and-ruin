@@ -70,7 +70,19 @@ puedes permitirte apagar nada. A partir de ahí solo miras cómo baja el número
 
 ## Jugar
 
-Hay un ejecutable ya compilado:
+**Sin tocar la terminal.** Instala el lanzador una vez:
+
+```bash
+./tools/instalar-acceso-directo.sh
+```
+
+Deja el juego en el menú de aplicaciones y un icono en el escritorio. Clic derecho sobre él
+→ *Abrir en ventana* si no lo quieres a pantalla completa. Para quitarlo,
+`./tools/instalar-acceso-directo.sh --desinstalar`.
+
+<img src="docs/icon.png" width="96" align="right" alt="Icono">
+
+También vale ejecutarlo directamente:
 
 ```bash
 ./Build/Uptime.x86_64
