@@ -95,9 +95,10 @@
     var err = document.getElementById("err");
 
     // Nitidez en pantallas de alta densidad (HiDPI/retina): el búfer de render debe
-    // igualar los píxeles FÍSICOS del canvas, no los CSS. Sin esto se ve borroso.
+    // renderizar por encima del tamaño mostrado (supersampling 2x-3x): así el
+      // texto queda nítido aunque la pantalla tenga devicePixelRatio = 1.
     function ajustarNitidez(){
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var dpr = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
       var rect = canvas.getBoundingClientRect();
       var w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
       if (canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }

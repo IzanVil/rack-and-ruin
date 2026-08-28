@@ -94,12 +94,13 @@
     var pct = document.getElementById("pct");
     var err = document.getElementById("err");
 
-    // Nitidez en pantallas de alta densidad (HiDPI/retina): el búfer de render debe
-    // igualar los píxeles FÍSICOS del canvas, no los píxeles CSS. Sin esto, el juego
-    // se renderiza a baja resolución y el navegador lo estira → se ve borroso.
-    // Se limita a 2x para no penalizar el rendimiento en pantallas 4K (DPR 3-4).
+    // Supersampling: el búfer de render se genera por encima del tamaño mostrado
+    // (2x-3x los píxeles CSS) y el navegador lo reduce. Así el texto de Unity queda
+    // nítido aunque la pantalla tenga devicePixelRatio = 1, que es donde uGUI con
+    // fuente dinámica se veía blando. Para esta UI ligera el coste de GPU es trivial;
+    // el tope de 3x evita excesos en pantallas 4K.
     function ajustarNitidez(){
-      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var dpr = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
       var rect = canvas.getBoundingClientRect();
       var w = Math.round(rect.width * dpr);
       var h = Math.round(rect.height * dpr);
