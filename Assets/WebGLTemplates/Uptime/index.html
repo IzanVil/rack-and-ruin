@@ -110,6 +110,11 @@
       }
     }
 
+    // Se ajusta la resolución ANTES de arrancar Unity: así el contexto gráfico
+    // se inicializa ya a la resolución supersampled y la primera imagen es
+    // nítida. (Antes se ajustaba después, y el primer render salía borroso.)
+    ajustarNitidez();
+
     createUnityInstance(canvas, {
       arguments: [],
       dataUrl: "Build/{{{ DATA_FILENAME }}}",
