@@ -77,24 +77,20 @@ namespace ServerGame.Events
         }
     }
 
-    /// <summary>Canal de eventos de la partida. Es una instancia (no estático) a propósito:
-    /// al reiniciar no quedan suscriptores colgados de la sesión anterior, que es el fallo
-    /// clásico de los buses estáticos en Unity cuando se desactiva el domain reload.</summary>
+    // Por instancia, no estático: al reiniciar no quedan suscriptores colgados de la
+    // sesión anterior cuando el domain reload está desactivado.
     public sealed class EventBus
     {
         /// <summary>Se ha escrito una línea nueva en la consola.</summary>
         public event Action<LogEntry> Logged;
 
-        /// <summary>Ha cambiado algo estructural (compra, avería, tarea iniciada/terminada).
-        /// La interfaz lo usa para reconstruir listas; los valores numéricos se leen por
-        /// sondeo en cada frame, que para esta escala es más simple y más barato.</summary>
+        // cambio estructural (compra, avería, tarea): la UI reconstruye listas.
+        // Los valores numéricos se leen por sondeo cada frame.
         public event Action Changed;
 
         public event Action<DaySummary> DayEnded;
         public event Action<GameOverInfo> GameOver;
 
-        /// <summary>Un servidor concreto merece atención (avería, sobrecalentamiento...).
-        /// La interfaz lo usa para el destello de la tarjeta.</summary>
         public event Action<ServerUnit, LogLevel> ServerAlert;
 
         public void Log(string message, LogLevel level, int day, float dayTime)

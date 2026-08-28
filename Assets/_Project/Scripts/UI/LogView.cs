@@ -6,8 +6,7 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Consola de eventos. Mantiene un número fijo de líneas y las reutiliza:
-    /// no crea ni destruye objetos durante la partida.</summary>
+    // Número fijo de líneas reutilizadas: no crea ni destruye objetos en partida.
     public sealed class LogView
     {
         public const float Height = 170f;
@@ -66,7 +65,7 @@ namespace ServerGame.UI
         {
             for (int i = 0; i < VisibleLines; i++)
             {
-                // La línea 0 es la más reciente: se recorre la lista hacia atrás.
+                // la línea 0 es la más reciente
                 int entryIndex = _entries.Count - 1 - i;
                 if (entryIndex < 0)
                 {

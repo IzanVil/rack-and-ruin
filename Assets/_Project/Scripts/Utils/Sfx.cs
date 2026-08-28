@@ -2,8 +2,7 @@ using UnityEngine;
 
 namespace ServerGame.Utils
 {
-    /// <summary>Sonido generado por síntesis: no hay ningún archivo de audio en el proyecto.
-    /// Son tonos cortos con envolvente para los clics y los avisos.</summary>
+    // Sonido sintetizado: tonos cortos con envolvente, sin archivos de audio.
     public static class Sfx
     {
         const int SampleRate = 44100;
@@ -66,7 +65,6 @@ namespace ServerGame.Utils
                 phase += 2f * Mathf.PI * freq / SampleRate;
 
                 float envelope = Mathf.Exp(-t / Mathf.Max(0.001f, decay)) * (1f - t);
-                // Onda sinusoidal con un toque de tercer armónico para que no suene plana.
                 float wave = Mathf.Sin(phase) * 0.85f + Mathf.Sin(phase * 3f) * 0.15f;
                 data[i] = wave * envelope * volume;
             }

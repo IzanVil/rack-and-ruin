@@ -15,7 +15,6 @@ namespace ServerGame.Core
         SecurityProbe
     }
 
-    /// <summary>Efecto temporal activo sobre toda la instalación.</summary>
     public sealed class ActiveEffect
     {
         public IncidentId Id;
@@ -25,8 +24,6 @@ namespace ServerGame.Core
         public float CoolingMultiplier = 1f;
     }
 
-    /// <summary>Genera las incidencias del turno. La frecuencia y la mezcla de sucesos
-    /// se endurecen con cada turno superado.</summary>
     public sealed class IncidentSystem
     {
         readonly List<ActiveEffect> _active = new List<ActiveEffect>();
@@ -94,8 +91,7 @@ namespace ServerGame.Core
             return Mathf.Max(4f, baseInterval * jitter);
         }
 
-        /// <summary>Los primeros turnos son casi solo picos de tráfico; a partir del tercero
-        /// entran las averías y los ataques.</summary>
+        // los primeros turnos casi solo picos; las averías y ataques entran más tarde
         IncidentId Roll(int day)
         {
             float spike = 30f;
@@ -219,8 +215,6 @@ namespace ServerGame.Core
                         bus.Log("Escaneo de puertos bloqueado. Los parches están al día.", LogLevel.Success, day, t);
                         break;
                     }
-                    // Se cobra lo que haya en caja: si no llega, la multa no puede
-                    // dejar la partida bloqueada con un cargo pendiente invisible.
                     float loss = Mathf.Min(session.Money, Mathf.Max(90f, session.Money * 0.12f));
                     session.Spend(loss, "brecha de seguridad");
                     session.AdjustReputation(-cfg.breachReputationLoss);
@@ -238,7 +232,7 @@ namespace ServerGame.Core
 
         void Push(ActiveEffect effect)
         {
-            // Un mismo tipo de incidencia no se apila: se renueva la duración.
+            // un mismo tipo no se apila: se renueva la duración
             for (int i = 0; i < _active.Count; i++)
             {
                 if (_active[i].Id != effect.Id) continue;

@@ -6,8 +6,6 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Rejilla de tarjetas de servidor. Solo reconstruye la lista cuando
-    /// cambia el número de máquinas del rack.</summary>
     public sealed class RackView
     {
         readonly GameSession _session;
@@ -48,8 +46,7 @@ namespace ServerGame.UI
             layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             layout.constraintCount = 5;
 
-            // Bahías libres: dejan ver de un vistazo cuánto puede crecer el rack y
-            // llevan directamente a la tienda.
+            // bahías libres: muestran cuánto puede crecer el rack y llevan a la tienda
             for (int i = 0; i < session.Config.maxServers; i++)
                 _emptyBays.Add(BuildEmptyBay(onEmptyBayClick));
 
@@ -80,8 +77,6 @@ namespace ServerGame.UI
             return slot.rectTransform;
         }
 
-        /// <summary>Crea las tarjetas que falten (el rack solo crece) y las coloca por
-        /// delante de las bahías libres.</summary>
         public void Rebuild()
         {
             for (int i = _cards.Count; i < _session.Rack.Count; i++)

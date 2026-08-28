@@ -3,12 +3,8 @@ using UnityEngine;
 
 namespace ServerGame.Core
 {
-    /// <summary>Punto de entrada del juego. Crea la sesión y la interfaz, y le pasa el
-    /// tiempo cada frame.
-    ///
-    /// La escena no necesita estar preparada: si al entrar en modo Play no hay ningún
-    /// GameBootstrap, se crea uno automáticamente. Así el proyecto arranca aunque se
-    /// abra la escena vacía por defecto.</summary>
+    // Punto de entrada. Si la escena no trae un GameBootstrap, AutoBoot crea uno,
+    // así el juego arranca incluso desde una escena vacía.
     [DefaultExecutionOrder(-100)]
     [AddComponentMenu("Server Game/Game Bootstrap")]
     public sealed class GameBootstrap : MonoBehaviour
@@ -80,8 +76,7 @@ namespace ServerGame.Core
             _ui = null;
         }
 
-        /// <summary>El reinicio se aplaza un frame: la petición llega desde el click de un
-        /// botón que todavía está dentro de la jerarquía que se va a destruir.</summary>
+        // se aplaza un frame: la petición viene del click de un botón que se va a destruir
         void RestartNextFrame()
         {
             StartCoroutine(RestartRoutine());
@@ -111,7 +106,6 @@ namespace ServerGame.Core
             _camera.orthographic = true;
             _camera.cullingMask = 0;
 
-            // Solo un AudioListener por escena: si ya hay uno, no se añade otro.
 #if UNITY_2023_1_OR_NEWER
             if (FindFirstObjectByType<AudioListener>() == null) go.AddComponent<AudioListener>();
 #else

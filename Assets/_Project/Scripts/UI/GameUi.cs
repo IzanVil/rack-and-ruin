@@ -7,9 +7,8 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Monta y coordina toda la interfaz. Los valores numéricos se leen por
-    /// sondeo en cada frame (son pocos widgets); los eventos del bus solo se usan para
-    /// lo que ocurre de forma puntual: log, cierre de turno y fin de partida.</summary>
+    // Monta y coordina la UI. Los valores se leen por sondeo cada frame; el bus solo
+    // avisa de lo puntual: log, cierre de turno y fin de partida.
     public sealed class GameUi
     {
         const float Margin = 16f;
@@ -26,7 +25,6 @@ namespace ServerGame.UI
 
         public Canvas Canvas { get; }
 
-        /// <summary>Lo invoca el botón de reinicio de la pantalla de fin de partida.</summary>
         public System.Action RestartRequested;
 
         public GameUi(GameSession session, Transform parent)
@@ -34,7 +32,6 @@ namespace ServerGame.UI
             _session = session;
             _bus = session.Bus;
 
-            // --- lienzo ---
             var canvasGo = new GameObject("GameCanvas", typeof(RectTransform), typeof(Canvas),
                 typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasGo.transform.SetParent(parent, false);
@@ -61,11 +58,9 @@ namespace ServerGame.UI
             var root = Ui.NewRect("Root", canvasRect);
             Ui.Stretch(root, Margin, Margin, Margin, Margin);
 
-            // --- cabecera ---
             _hud = new HudView(root, session);
             _hud.UpgradesButton.OnClick(() => _upgrades.Toggle());
 
-            // --- cuerpo ---
             var body = Ui.NewRect("Body", root);
             Ui.Stretch(body, 0f, 0f, HudView.TotalHeight + 6f, 0f);
 
@@ -84,7 +79,6 @@ namespace ServerGame.UI
             Ui.Bottom(logHolder, LogView.Height);
             _log = new LogView(logHolder, session.Bus);
 
-            // --- modales (siempre por encima) ---
             _upgrades = new UpgradesView(canvasRect, session);
             _overlay = new OverlayView(canvasRect);
 
@@ -119,18 +113,13 @@ namespace ServerGame.UI
             _overlay.ShowGameOver(info, () => RestartRequested?.Invoke());
         }
 
-        /// <summary>Cierra la pantalla de introducción y empieza la partida.
-        /// Lo usan las herramientas de captura y cualquier arranque automático.</summary>
         public void SkipIntro()
         {
             _overlay.Hide();
             _session.BeginRun();
         }
 
-        /// <summary>Abre la tienda de mejoras desde código (herramienta de capturas).</summary>
         public void OpenUpgradesForCapture() => _upgrades.Open();
-
-        /// <summary>Cierra la tienda de mejoras desde código (herramienta de capturas).</summary>
         public void CloseUpgradesForCapture() => _upgrades.Close();
 
         public void Tick()
@@ -149,8 +138,6 @@ namespace ServerGame.UI
             _inspector.Refresh();
             _upgrades.Refresh();
         }
-
-        // ------------------------------------------------------------------ teclado
 
         void HandleInput()
         {

@@ -54,8 +54,6 @@ namespace ServerGame.EditorTools
             return failures;
         }
 
-        // ------------------------------------------------------------------ simulación
-
         static readonly int[] Seeds = { 20260828, 7, 31337, 4242, 99001 };
 
         static int RunSimulation(StringBuilder log)
@@ -139,8 +137,7 @@ namespace ServerGame.EditorTools
             return failures;
         }
 
-        /// <summary>Jugador automático sencillo: mantiene el hardware y compra capacidad.
-        /// No pretende jugar bien, solo ejercitar todos los caminos del código.</summary>
+        // jugador automático: mantiene el hardware y compra capacidad
         static void AutoPlay(GameSession session, GameConfig cfg)
         {
             // Prioridad 1: capacidad. Sin margen no se puede hacer mantenimiento.
@@ -229,8 +226,6 @@ namespace ServerGame.EditorTools
             return failures;
         }
 
-        // ------------------------------------------------------------------ interfaz
-
         static int RunUiConstruction(StringBuilder log)
         {
             log.AppendLine();
@@ -280,8 +275,6 @@ namespace ServerGame.EditorTools
 
             return failures;
         }
-
-        // ------------------------------------------------------------------ acciones
 
         static int RunActionCoverage(StringBuilder log)
         {
@@ -382,8 +375,6 @@ namespace ServerGame.EditorTools
         }
 
         static void GiveMoney(GameSession session, float amount) => session.Grant(amount);
-
-        // ------------------------------------------------------------------ utilidades
 
         static int Check(StringBuilder log, bool condition, string message)
         {

@@ -6,8 +6,7 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Modal reutilizable para la introducción, el cierre de turno y el fin de
-    /// partida. Se construye una sola vez y cada pantalla rellena las mismas piezas.</summary>
+    // Modal reutilizable: intro, cierre de turno y fin de partida.
     public sealed class OverlayView
     {
         /// <summary>Qué pantalla ocupa el modal en este momento.</summary>
@@ -121,8 +120,6 @@ namespace ServerGame.UI
             _rowValues[index].text = value;
             _rowValues[index].color = valueColor;
         }
-
-        // ------------------------------------------------------------------ pantallas
 
         public void ShowIntro(Action onStart)
         {

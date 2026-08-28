@@ -52,8 +52,7 @@ namespace ServerGame.EditorTools
                 host = new GameObject("ScreenshotHost");
                 ui = new GameUi(session, host.transform);
 
-                // El lienzo pasa a espacio de mundo con el tamaño de referencia exacto,
-                // para que la captura reproduzca la maquetación píxel a píxel.
+                // lienzo en espacio de mundo al tamaño de referencia exacto
                 var canvas = ui.Canvas;
                 canvas.renderMode = RenderMode.WorldSpace;
                 var canvasRect = (RectTransform)canvas.transform;
@@ -117,9 +116,7 @@ namespace ServerGame.EditorTools
             }
         }
 
-        /// <summary>Lleva la partida a un momento con tensión: rack poblado, tráfico alto,
-        /// un ataque en curso y máquinas en distintos estados. Una captura del turno 1 con
-        /// todo en verde no cuenta de qué va el juego.</summary>
+        // lleva la partida a un momento con tensión para las capturas
         static void BuildInterestingState(GameSession session, GameConfig cfg)
         {
             session.Grant(12000f);

@@ -6,8 +6,6 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Barra superior: caja, reputación, tráfico, reloj del turno y control
-    /// de velocidad. Debajo, una franja con las incidencias activas.</summary>
     public sealed class HudView
     {
         public const float BarHeight = 76f;
@@ -62,7 +60,6 @@ namespace ServerGame.UI
             _slaValue = Block(root, 760f, "SLA DEL TURNO", 150f, out _slaBar, true);
             _clockValue = Block(root, 910f, "TIEMPO RESTANTE", 150f, out _clockBar, true);
 
-            // --- controles de velocidad, anclados a la derecha ---
             var controls = Ui.NewRect("Controls", root);
             Ui.Right(controls, 400f, 16f, 16f, 16f);
 
@@ -97,7 +94,6 @@ namespace ServerGame.UI
                 _speedButtons[i] = button;
             }
 
-            // --- franja de incidencias ---
             _stripBg = Ui.NewPanel("Strip", parent, UiTheme.PanelDeep, UiTheme.RadiusSmall);
             Ui.Top(_stripBg.rectTransform, StripHeight, BarHeight + 6f);
             _stripText = Ui.NewText("StripText", _stripBg.rectTransform, string.Empty, 12,
@@ -105,7 +101,6 @@ namespace ServerGame.UI
             Ui.Stretch(_stripText.rectTransform, 14f, 14f, 0f, 0f);
         }
 
-        /// <summary>Bloque de estadística: rótulo, valor y (opcionalmente) barra.</summary>
         Text Block(RectTransform parent, float x, string caption, float width, out Bar bar,
             bool withBar = false)
         {

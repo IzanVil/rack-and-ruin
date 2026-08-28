@@ -5,9 +5,7 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Panel lateral con el detalle del servidor seleccionado y sus acciones.
-    /// Los botones se crean una vez y se refrescan a partir de GameSession.GetActions,
-    /// de modo que las reglas de disponibilidad viven en la lógica, no aquí.</summary>
+    // Detalle del servidor seleccionado. Las acciones salen de GameSession.GetActions.
     public sealed class InspectorView
     {
         const int ActionCount = 7;

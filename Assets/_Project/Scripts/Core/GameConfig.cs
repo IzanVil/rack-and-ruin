@@ -2,9 +2,7 @@ using UnityEngine;
 
 namespace ServerGame.Core
 {
-    /// <summary>Todos los números que definen el equilibrio del juego.
-    /// Se puede crear un asset (Assets > Create > Server Game > Configuración) y
-    /// asignarlo al GameBootstrap para ajustar la dificultad sin tocar código.</summary>
+    // Números de equilibrio. Crear un asset desde Assets > Create > Server Game.
     [CreateAssetMenu(menuName = "Server Game/Configuración", fileName = "GameConfig")]
     public sealed class GameConfig : ScriptableObject
     {
@@ -90,7 +88,6 @@ namespace ServerGame.Core
         [Tooltip("Variación aleatoria del intervalo (0.3 = ±30 %).")]
         [Range(0f, 0.8f)] public float incidentIntervalJitter = 0.3f;
 
-        /// <summary>Configuración por defecto cuando no se ha asignado ningún asset.</summary>
         public static GameConfig CreateDefault()
         {
             var cfg = CreateInstance<GameConfig>();

@@ -5,8 +5,6 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Barra de progreso sencilla: un fondo y un relleno anclado.
-    /// El relleno usa anclas en vez de tamaño para que se adapte solo al layout.</summary>
     public sealed class Bar
     {
         public readonly RectTransform Rect;
@@ -83,8 +81,7 @@ namespace ServerGame.UI
         }
     }
 
-    /// <summary>Constructores de widgets. Toda la interfaz se monta por código, así que
-    /// no hay prefabs que se puedan romper ni referencias que se pierdan al reimportar.</summary>
+    // Constructores de widgets. La UI se monta por código, sin prefabs.
     public static class Ui
     {
         public static RectTransform NewRect(string name, Transform parent)
@@ -158,8 +155,7 @@ namespace ServerGame.UI
             Text sub = null;
             if (withSubLabel)
             {
-                // Etiqueta arriba y detalle abajo, repartidos por anclas para que
-                // funcione con cualquier altura de botón.
+                // etiqueta arriba, detalle abajo
                 var labelRect = labelText.rectTransform;
                 labelRect.anchorMin = new Vector2(0f, 0.44f);
                 labelRect.anchorMax = Vector2.one;
@@ -198,8 +194,6 @@ namespace ServerGame.UI
             Stretch(text.rectTransform, 6f, 6f, 0f, 0f);
             return text;
         }
-
-        // ------------------------------------------------------------------ anclajes
 
         public static RectTransform Stretch(RectTransform rt, float left = 0f, float right = 0f,
             float top = 0f, float bottom = 0f)
@@ -277,8 +271,6 @@ namespace ServerGame.UI
             rt.sizeDelta = new Vector2(width, height);
             return rt;
         }
-
-        // ------------------------------------------------------------------ layouts
 
         public static VerticalLayoutGroup VBox(RectTransform rt, float spacing, RectOffset padding = null,
             TextAnchor align = TextAnchor.UpperLeft)

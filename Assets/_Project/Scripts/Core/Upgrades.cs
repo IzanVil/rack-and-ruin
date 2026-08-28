@@ -26,7 +26,6 @@ namespace ServerGame.Core
         public int MaxLevel => Costs?.Length ?? 0;
     }
 
-    /// <summary>Catálogo de mejoras permanentes y niveles comprados.</summary>
     public sealed class UpgradeState
     {
         public static readonly UpgradeDef[] Catalog =
@@ -96,14 +95,13 @@ namespace ServerGame.Core
             return null;
         }
 
-        /// <summary>Nivel máximo alcanzable teniendo en cuenta los repetibles.</summary>
         public int MaxLevelOf(UpgradeDef def, GameConfig cfg)
         {
             if (def.Id == UpgradeId.NewServer) return Mathf.Max(0, cfg.maxServers - cfg.startingServers);
             return def.MaxLevel;
         }
 
-        /// <summary>Coste del siguiente nivel, o -1 si ya está al máximo.</summary>
+        // -1 si ya está al máximo
         public int NextCost(UpgradeDef def, GameConfig cfg)
         {
             int lvl = Level(def.Id);
@@ -115,8 +113,6 @@ namespace ServerGame.Core
             return def.Costs[lvl];
         }
 
-        // ------------------------------------------------------------- modificadores derivados
-
         public float CoolingMultiplier => 1f + 0.45f * Level(UpgradeId.Cooling);
         public float BalanceQuality => Mathf.Clamp01(0.50f + 0.17f * Level(UpgradeId.LoadBalancer));
         public float LeakMultiplier => Mathf.Max(0.1f, 1f - 0.35f * Level(UpgradeId.Monitoring));
@@ -125,7 +121,6 @@ namespace ServerGame.Core
         public float DdosAbsorption => Mathf.Clamp01(0.30f * Level(UpgradeId.DdosShield));
         public bool HasUps => Level(UpgradeId.Ups) > 0;
 
-        /// <summary>Texto del efecto actual, para mostrarlo en la tienda.</summary>
         public string EffectSummary(UpgradeId id, GameConfig cfg)
         {
             switch (id)

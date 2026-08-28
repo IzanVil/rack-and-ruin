@@ -34,15 +34,13 @@ namespace ServerGame.UI
 
         static Font _font;
 
-        /// <summary>Fuente integrada de Unity. No hace falta importar TextMesh Pro ni
-        /// ningún asset: el proyecto funciona nada más copiar los scripts.</summary>
+        // fuente integrada de Unity, sin assets externos
         public static Font Font
         {
             get
             {
                 if (_font != null) return _font;
 
-                // Unity 2022+ sirve la fuente por defecto con este nombre.
                 _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
                 if (_font == null) _font = Resources.GetBuiltinResource<Font>("Arial.ttf");
                 if (_font == null) _font = Font.CreateDynamicFontFromOSFont("Arial", 16);

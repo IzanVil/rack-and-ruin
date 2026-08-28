@@ -3,9 +3,8 @@ using UnityEngine;
 
 namespace ServerGame.Utils
 {
-    /// <summary>Genera los sprites de la interfaz por código (rectángulos redondeados y
-    /// círculos con antialiasing). Así el proyecto no depende de ningún asset binario:
-    /// se puede copiar la carpeta de scripts y funciona tal cual.</summary>
+    // Sprites de la UI generados por código (rectángulos redondeados y círculos), sin
+    // ningún asset binario.
     public static class TextureFactory
     {
         static readonly Dictionary<int, Sprite> RoundedCache = new Dictionary<int, Sprite>();
@@ -63,8 +62,7 @@ namespace ServerGame.Utils
             }
         }
 
-        /// <summary>Rectángulo redondeado preparado para Image.Type.Sliced, de modo que
-        /// el radio se mantiene constante sea cual sea el tamaño del panel.</summary>
+        // preparado para Image.Type.Sliced: el radio no depende del tamaño del panel
         public static Sprite RoundedRect(int radius)
         {
             radius = Mathf.Clamp(radius, 1, 48);
@@ -84,7 +82,7 @@ namespace ServerGame.Utils
                     float py = Mathf.Abs(y + 0.5f - half) - inner;
                     float qx = Mathf.Max(px, 0f);
                     float qy = Mathf.Max(py, 0f);
-                    // Distancia con signo a un rectángulo redondeado (SDF clásico).
+                    // SDF de rectángulo redondeado
                     float d = Mathf.Sqrt(qx * qx + qy * qy) + Mathf.Min(Mathf.Max(px, py), 0f) - radius + 0.5f;
                     byte a = (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f - d) * 255f);
                     pixels[y * size + x] = new Color32(255, 255, 255, a);

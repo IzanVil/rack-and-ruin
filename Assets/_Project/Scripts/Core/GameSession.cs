@@ -8,8 +8,6 @@ namespace ServerGame.Core
 
     public enum ServerActionId { Reboot, Cool, Repair, Patch, Power, TierUpgrade, Replace }
 
-    /// <summary>Descripción de una acción tal y como debe pintarla la interfaz.
-    /// La lógica de disponibilidad vive aquí, no en la UI.</summary>
     public struct ServerActionInfo
     {
         public ServerActionId Id;
@@ -21,8 +19,6 @@ namespace ServerGame.Core
         public string DisabledReason;
     }
 
-    /// <summary>Estado y reglas de una partida. No hereda de MonoBehaviour: el
-    /// GameBootstrap se limita a llamar a Tick() y la interfaz solo lee de aquí.</summary>
     public sealed class GameSession
     {
         public const string BestScoreKey = "ServerGame.BestScore";
@@ -43,7 +39,6 @@ namespace ServerGame.Core
         public float DayTime { get; private set; }
         public float Speed { get; private set; } = 1f;
 
-        /// <summary>Demanda actual en peticiones por segundo, incidencias incluidas.</summary>
         public float Demand { get; private set; }
         public float Served { get; private set; }
         public float Dropped => Mathf.Max(0f, Demand - Served);
@@ -62,7 +57,6 @@ namespace ServerGame.Core
         public float DayTimeRemaining => Mathf.Max(0f, Config.dayLengthSeconds - DayTime);
         public bool IsPaused => Speed <= 0f;
 
-        /// <summary>Porcentaje de peticiones atendidas en el turno en curso.</summary>
         public float DaySla
         {
             get
@@ -87,14 +81,11 @@ namespace ServerGame.Core
             _incidents.BeginDay(Config, Day);
         }
 
-        // ------------------------------------------------------------------ bucle principal
-
         public void Tick(float deltaTime)
         {
             if (Phase != SessionPhase.Playing || Speed <= 0f) return;
 
-            // Se trocea el paso para que a ×4 la simulación térmica y el desgaste
-            // sigan siendo estables y no dependan de los FPS.
+            // pasos pequeños para que la térmica no dependa de los FPS ni de la velocidad
             float scaled = deltaTime * Speed;
             const float maxStep = 0.05f;
             int steps = Mathf.Clamp(Mathf.CeilToInt(scaled / maxStep), 1, 16);
@@ -157,11 +148,10 @@ namespace ServerGame.Core
         {
             float baseline = Config.baseDemand + Config.demandGrowthPerDay * (Day - 1);
 
-            // Onda lenta: la carga sube y baja a lo largo del turno.
             float wave = 1f + Config.demandWaveAmplitude *
                 Mathf.Sin(DayTime / Mathf.Max(1f, Config.demandWavePeriod) * Mathf.PI * 2f);
 
-            // Rampa de calentamiento al empezar el turno, para que no entre de golpe.
+            // arranque suave del turno
             float warmup = Mathf.Clamp01(DayTime / 6f);
             warmup = 0.55f + 0.45f * warmup;
 
@@ -194,8 +184,6 @@ namespace ServerGame.Core
                 "La reputación llegó a cero. El cliente se ha llevado su tráfico a otro proveedor.");
         }
 
-        // ------------------------------------------------------------------ ciclo de turnos
-
         void EndDay()
         {
             DayTime = Config.dayLengthSeconds;
@@ -212,8 +200,7 @@ namespace ServerGame.Core
             }
             else
             {
-                // No se puede pagar la operación: en vez de bloquear la partida con dinero
-                // negativo, el impago se cobra en reputación.
+                // sin caja para operar: el impago se cobra en reputación, no en dinero negativo
                 Money = 0f;
                 AdjustReputation(-10f);
                 Bus.Log("No hay caja para cubrir los gastos de operación. Reputación -10.",
@@ -241,8 +228,6 @@ namespace ServerGame.Core
             Bus.RaiseChanged();
         }
 
-        /// <summary>Prima por cumplir el nivel de servicio. Es del orden de medio turno de
-        /// ingresos, así que jugar limpio compensa frente a ir apagando fuegos.</summary>
         float SlaBonus(float sla)
         {
             if (sla >= 0.999f) return 300f + Day * 45f;
@@ -251,8 +236,6 @@ namespace ServerGame.Core
             return 0f;
         }
 
-        /// <summary>Coste de mantener el rack encendido un turno. Las máquinas ampliadas
-        /// consumen más, así que crecer no sale gratis.</summary>
         float OperatingCost()
         {
             float total = 0f;
@@ -261,7 +244,6 @@ namespace ServerGame.Core
             return total;
         }
 
-        /// <summary>Arranca el primer turno desde la pantalla de introducción.</summary>
         public void BeginRun()
         {
             if (Phase != SessionPhase.Intro) return;
@@ -315,8 +297,6 @@ namespace ServerGame.Core
             Bus.RaiseChanged();
         }
 
-        // ------------------------------------------------------------------ control
-
         public void SetSpeed(float speed)
         {
             if (Phase != SessionPhase.Playing) return;
@@ -335,7 +315,6 @@ namespace ServerGame.Core
             Selected = unit;
         }
 
-        /// <summary>Selecciona el siguiente servidor que necesita atención (tecla Tab).</summary>
         public void SelectNextProblem()
         {
             if (Rack.Count == 0) return;
@@ -350,16 +329,13 @@ namespace ServerGame.Core
             Selected = Rack[(start + 1 + Rack.Count) % Rack.Count];
         }
 
-        // ------------------------------------------------------------------ acciones
-
         public int RepairCost(ServerUnit unit) =>
             Mathf.Max(Config.repairMinimumCost,
                 Mathf.RoundToInt((100f - unit.Health) * Config.repairCostPerHealthPoint));
 
         public int TierUpgradeCost(ServerUnit unit) => Config.tierUpgradeBaseCost * unit.Tier;
 
-        /// <summary>Rellena y devuelve la lista de acciones para un servidor.
-        /// Se reutiliza el mismo buffer en cada llamada para no generar basura por frame.</summary>
+        // reutiliza el mismo buffer para no generar basura por frame
         public List<ServerActionInfo> GetActions(ServerUnit unit)
         {
             _actionBuffer.Clear();
@@ -503,8 +479,6 @@ namespace ServerGame.Core
             return true;
         }
 
-        // ------------------------------------------------------------------ mejoras
-
         public bool CanBuy(UpgradeDef def)
         {
             int cost = Upgrades.NextCost(def, Config);
@@ -535,16 +509,13 @@ namespace ServerGame.Core
             return true;
         }
 
-        // ------------------------------------------------------------------ utilidades
-
-        /// <summary>Ingresa dinero en caja (primas, ajustes, herramientas de prueba).</summary>
         public void Grant(float amount)
         {
             if (amount <= 0f) return;
             Money += amount;
         }
 
-        /// <summary>Descuenta dinero si hay saldo. Devuelve false si no llega.</summary>
+        // false si no hay saldo suficiente
         public bool Spend(float amount, string concept)
         {
             if (amount <= 0f) return true;

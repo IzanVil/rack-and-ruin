@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace ServerGame.Core
 {
-    /// <summary>El rack: contiene los servidores y reparte el tráfico entre ellos.</summary>
     public sealed class Rack
     {
         readonly List<ServerUnit> _servers = new List<ServerUnit>();
@@ -48,11 +47,8 @@ namespace ServerGame.Core
             }
         }
 
-        /// <summary>Reparte la demanda entre los servidores en línea y devuelve cuántas
-        /// peticiones por segundo se han podido atender realmente.</summary>
-        /// <param name="balanceQuality">1 = reparto perfectamente proporcional.
-        /// Por debajo de 1 el balanceador comete errores y sobrecarga a unos mientras
-        /// deja a otros ociosos, que es lo que corrige la mejora del balanceador.</param>
+        // Reparte la demanda entre los servidores en línea y devuelve lo realmente atendido.
+        // balanceQuality < 1 introduce desequilibrio (lo corrige la mejora del balanceador).
         public float Distribute(float demand, GameConfig cfg, float balanceQuality, float time)
         {
             _caps.Clear();
@@ -81,8 +77,7 @@ namespace ServerGame.Core
                 float w = _caps[i];
                 if (w > 0f && imbalance > 0f)
                 {
-                    // Ruido suave y determinista: el desequilibrio deriva poco a poco
-                    // en vez de parpadear cada frame.
+                    // ruido determinista para que el desequilibrio no parpadee cada frame
                     float noise = Mathf.PerlinNoise(i * 3.17f, time * 0.28f) - 0.5f;
                     w *= Mathf.Max(0.05f, 1f + noise * 2f * imbalance * 0.7f);
                 }
@@ -93,8 +88,7 @@ namespace ServerGame.Core
             for (int i = 0; i < _servers.Count; i++)
                 _servers[i].Load = weightSum <= 0f ? 0f : target * (_weights[i] / weightSum);
 
-            // Reparto por llenado: lo que sobra de los servidores al tope se pasa a los
-            // que aún tienen holgura. Converge en pocas pasadas porque target <= capacidad total.
+            // reparto por llenado: el excedente de los saturados va a los que tienen holgura
             for (int pass = 0; pass < 4; pass++)
             {
                 float overflow = 0f;
@@ -129,7 +123,6 @@ namespace ServerGame.Core
             return served;
         }
 
-        /// <summary>Devuelve un servidor al azar que cumpla el filtro, o null.</summary>
         public ServerUnit PickRandom(System.Random rng, System.Func<ServerUnit, bool> filter)
         {
             int matches = 0;
@@ -138,13 +131,12 @@ namespace ServerGame.Core
             {
                 if (!filter(_servers[i])) continue;
                 matches++;
-                // Muestreo de reservorio: una sola pasada, sin listas temporales.
+                // muestreo de reservorio
                 if (rng.Next(matches) == 0) chosen = _servers[i];
             }
             return chosen;
         }
 
-        /// <summary>Servidor con la vulnerabilidad más alta entre los que atienden tráfico.</summary>
         public ServerUnit MostVulnerable()
         {
             ServerUnit worst = null;

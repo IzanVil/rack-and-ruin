@@ -45,17 +45,12 @@ namespace ServerGame.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
 
-        /// <summary>Ajustes específicos de la build web. Se fijan aquí, no a mano en el
-        /// editor, para que la build por línea de comandos sea reproducible.</summary>
+        // ajustes fijados por código para que la build sea reproducible
         static void ConfigureWebGL()
         {
-            // Sin comprobaciones de excepciones a nivel de código: el juego no las usa en
-            // caliente y así el .wasm es más pequeño y rápido.
             PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.None;
 
-            // Brotli da el menor tamaño de descarga. Requiere que el servidor mande la
-            // cabecera Content-Encoding; GitHub Pages e itch.io lo hacen. Si el hosting no
-            // descomprime, se cambia a Gzip o Disabled y se recompila.
+            // Brotli + fallback JS: funciona aunque el hosting no mande Content-Encoding
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
             PlayerSettings.WebGL.decompressionFallback = true;   // fallback JS si falta la cabecera
             PlayerSettings.WebGL.dataCaching = true;

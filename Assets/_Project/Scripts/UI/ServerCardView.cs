@@ -5,8 +5,7 @@ using UnityEngine.UI;
 
 namespace ServerGame.UI
 {
-    /// <summary>Tarjeta de un servidor dentro del rack. Se construye una vez y se
-    /// refresca cada frame leyendo el modelo; nunca instancia nada en Refresh.</summary>
+    // Se construye una vez y se refresca leyendo el modelo; Refresh no instancia nada.
     public sealed class ServerCardView
     {
         public const float Width = 224f;
@@ -97,7 +96,6 @@ namespace ServerGame.UI
 
             _tier.text = "NIVEL " + unit.Tier;
 
-            // --- estado ---
             Color stateColor;
             switch (unit.State)
             {
@@ -110,7 +108,6 @@ namespace ServerGame.UI
             _statePill.text = unit.StateLabel();
             _statePill.color = unit.State == ServerState.Offline ? UiTheme.TextPrimary : UiTheme.Background;
 
-            // --- barras ---
             float loadRatio = unit.LoadRatio(cfg);
             _loadValue.text = unit.IsServing ? Fmt.Compact(unit.Load) + " / " + Fmt.Compact(unit.EffectiveCapacity(cfg)) : "—";
             _loadBar.Set(unit.IsServing ? loadRatio : 0f, UiTheme.LoadColor(loadRatio));
@@ -124,10 +121,8 @@ namespace ServerGame.UI
             _healthValue.text = Fmt.Percent100(unit.Health);
             _healthBar.Set(unit.Health / 100f, UiTheme.HealthColor(unit.Health));
 
-            // --- avisos ---
             _badges.text = BuildBadges(unit, cfg);
 
-            // --- tarea en curso ---
             if (unit.IsBusy)
             {
                 _taskBar.Rect.gameObject.SetActive(true);
@@ -138,7 +133,6 @@ namespace ServerGame.UI
                 _taskBar.Rect.gameObject.SetActive(false);
             }
 
-            // --- selección y alerta ---
             bool selected = session.Selected == unit;
             Color border = selected ? UiTheme.Accent : UiTheme.Line;
             if (unit.AlertFlash > 0f) border = Color.Lerp(border, UiTheme.Critical, unit.AlertFlash);

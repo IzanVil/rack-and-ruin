@@ -4,24 +4,16 @@ namespace ServerGame.Core
 {
     public enum ServerState
     {
-        /// <summary>Arrancando tras un encendido manual.</summary>
         Booting,
-        /// <summary>Atendiendo tráfico.</summary>
         Online,
-        /// <summary>Reiniciando: no atiende, pero se enfría y limpia la memoria.</summary>
         Rebooting,
-        /// <summary>En mantenimiento (reparación, parche o ampliación).</summary>
         Maintenance,
-        /// <summary>Apagado a propósito por el operador.</summary>
         Offline,
-        /// <summary>Averiado: necesita sustitución.</summary>
         Failed
     }
 
     public enum TaskKind { None, Boot, Reboot, Repair, Patch, TierUpgrade, Replace }
 
-    /// <summary>Modelo de un servidor del rack. Es C# puro (sin MonoBehaviour) para que la
-    /// simulación se pueda probar y ajustar sin depender de la escena.</summary>
     public sealed class ServerUnit
     {
         public const int MaxTier = 3;
@@ -33,24 +25,18 @@ namespace ServerGame.Core
         public ServerState State { get; private set; } = ServerState.Online;
         public float Health { get; private set; } = 100f;
         public float Temperature { get; private set; }
-        /// <summary>0..1. Memoria filtrada: recorta la capacidad hasta un 60 %. Se limpia al reiniciar.</summary>
+        // 0..1, recorta la capacidad hasta un 60%. Se limpia al reiniciar.
         public float MemoryLeak { get; private set; }
-        /// <summary>0..100. Deuda de parches de seguridad.</summary>
+        // 0..100, deuda de parches de seguridad.
         public float Vulnerability { get; private set; }
-        /// <summary>Peticiones por segundo asignadas por el balanceador en el frame actual.</summary>
         public float Load { get; internal set; }
-        /// <summary>Segundos desde el último reinicio.</summary>
         public float Uptime { get; private set; }
-
-        /// <summary>Segundos que faltan para poder volver a refrigerar a la fuerza.</summary>
         public float CoolingCooldown { get; private set; }
 
         public TaskKind Task { get; private set; }
         public float TaskRemaining { get; private set; }
         public float TaskTotal { get; private set; }
 
-        /// <summary>Se pone a 1 cuando el servidor sufre un incidente; la interfaz lo usa
-        /// para el destello de aviso y lo deja caer sola.</summary>
         public float AlertFlash { get; internal set; }
 
         public ServerUnit(int index, GameConfig cfg)
@@ -66,20 +52,16 @@ namespace ServerGame.Core
         public float TierMultiplier => 1f + 0.65f * (Tier - 1);
         public float TaskProgress01 => TaskTotal <= 0f ? 0f : 1f - Mathf.Clamp01(TaskRemaining / TaskTotal);
 
-        /// <summary>Capacidad antes de aplicar el recorte térmico. Se usa como referencia para
-        /// el calor, de modo que el throttling reduzca el rendimiento sin provocar una
-        /// realimentación infinita calor -> menos capacidad -> más calor.</summary>
+        // Capacidad sin el recorte térmico. El calor se calcula sobre esta y no sobre la
+        // efectiva, para no realimentar calor -> menos capacidad -> más calor.
         public float NominalCapacity(GameConfig cfg)
         {
             if (!IsServing) return 0f;
-            // El hardware gastado rinde menos, pero no tanto como para provocar una
-            // espiral de la que sea imposible salir: a 0 % de salud la máquina se avería.
             float health = Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(Health / 100f));
             float leak = 1f - Mathf.Clamp01(MemoryLeak) * 0.45f;
             return cfg.serverBaseCapacity * TierMultiplier * health * leak;
         }
 
-        /// <summary>Factor 0..1 de recorte por temperatura.</summary>
         public float ThermalThrottle(GameConfig cfg)
         {
             if (Temperature <= cfg.throttleStartTemp) return 1f;
@@ -87,10 +69,8 @@ namespace ServerGame.Core
             return Mathf.Lerp(1f, cfg.minThermalThrottle, Mathf.Clamp01(t));
         }
 
-        /// <summary>Peticiones por segundo que este servidor puede atender ahora mismo.</summary>
         public float EffectiveCapacity(GameConfig cfg) => NominalCapacity(cfg) * ThermalThrottle(cfg);
 
-        /// <summary>Ocupación 0..1 respecto a la capacidad nominal (la que genera calor).</summary>
         public float LoadRatio(GameConfig cfg)
         {
             float nominal = NominalCapacity(cfg);
@@ -101,14 +81,7 @@ namespace ServerGame.Core
         public bool NeedsAttention(GameConfig cfg) =>
             IsFailed || Health < 35f || Vulnerability > 60f || MemoryLeak > 0.4f || IsOverheating(cfg);
 
-        // ------------------------------------------------------------------ simulación
-
-        /// <summary>Avanza la simulación de este servidor.</summary>
-        /// <param name="coolingMultiplier">Eficacia de la refrigeración (mejoras e incidencias).</param>
-        /// <param name="wearMultiplier">Multiplicador de desgaste (componentes redundantes).</param>
-        /// <param name="leakMultiplier">Multiplicador de fuga de memoria (monitorización).</param>
-        /// <param name="autoPatchPerSecond">Puntos de vulnerabilidad que se corrigen solos.</param>
-        /// <returns>true si el servidor se ha averiado en este tick.</returns>
+        // devuelve true si el servidor se ha averiado en este tick
         public bool Tick(float dt, GameConfig cfg, float coolingMultiplier, float wearMultiplier,
             float leakMultiplier, float autoPatchPerSecond, System.Random rng)
         {
@@ -142,7 +115,6 @@ namespace ServerGame.Core
                 }
                 else if (Health < cfg.suddenFailureHealthThreshold)
                 {
-                    // Cuanto peor está el hardware, más probable es que se caiga de golpe.
                     float t = 1f - Health / Mathf.Max(1f, cfg.suddenFailureHealthThreshold);
                     if (rng.NextDouble() < cfg.suddenFailureChanceAtZeroHealth * t * dt)
                     {
@@ -170,7 +142,7 @@ namespace ServerGame.Core
             else if (State == ServerState.Offline || State == ServerState.Failed)
                 target = cfg.ambientTemperature;
             else
-                target = cfg.ambientTemperature + 6f; // reiniciando o en mantenimiento: casi en reposo
+                target = cfg.ambientTemperature + 6f;
 
             if (Temperature < target)
                 Temperature = Mathf.MoveTowards(Temperature, target, cfg.heatRatePerSecond * dt);
@@ -178,8 +150,6 @@ namespace ServerGame.Core
                 Temperature = Mathf.MoveTowards(Temperature, target,
                     cfg.coolRatePerSecond * Mathf.Max(0.15f, coolingMultiplier) * dt);
         }
-
-        // ------------------------------------------------------------------ acciones
 
         public void StartTask(TaskKind kind, float duration)
         {
@@ -239,7 +209,6 @@ namespace ServerGame.Core
             TaskTotal = 0f;
         }
 
-        /// <summary>Refrigeración forzada: efecto inmediato.</summary>
         public void ApplyCoolingBurst(GameConfig cfg)
         {
             Temperature = Mathf.Max(cfg.ambientTemperature, Temperature - cfg.coolingBurstDegrees);
