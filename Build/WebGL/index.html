@@ -94,6 +94,15 @@
     var pct = document.getElementById("pct");
     var err = document.getElementById("err");
 
+    // Nitidez en pantallas de alta densidad (HiDPI/retina): el búfer de render debe
+    // igualar los píxeles FÍSICOS del canvas, no los CSS. Sin esto se ve borroso.
+    function ajustarNitidez(){
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var rect = canvas.getBoundingClientRect();
+      var w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
+      if (canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }
+    }
+
     createUnityInstance(canvas, {
       arguments: [],
       dataUrl: "Build/WebGL.data.unityweb",
@@ -103,6 +112,7 @@
       companyName: "Izan",
       productName: "UPTIME - Turno de Noche",
       productVersion: "1.0",
+      matchWebGLToCanvasSize: false,
     }, function(progress){
       var p = Math.round(progress*100);
       fill.style.width = p + "%";
@@ -114,6 +124,8 @@
         instance.SetFullscreen(1);
       };
       // El foco en el canvas hace que el teclado llegue al juego sin un primer clic.
+      ajustarNitidez();
+      window.addEventListener("resize", ajustarNitidez);
       canvas.focus();
     }).catch(function(message){
       loader.style.display = "none";

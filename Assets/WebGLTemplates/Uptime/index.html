@@ -94,6 +94,21 @@
     var pct = document.getElementById("pct");
     var err = document.getElementById("err");
 
+    // Nitidez en pantallas de alta densidad (HiDPI/retina): el búfer de render debe
+    // igualar los píxeles FÍSICOS del canvas, no los píxeles CSS. Sin esto, el juego
+    // se renderiza a baja resolución y el navegador lo estira → se ve borroso.
+    // Se limita a 2x para no penalizar el rendimiento en pantallas 4K (DPR 3-4).
+    function ajustarNitidez(){
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var rect = canvas.getBoundingClientRect();
+      var w = Math.round(rect.width * dpr);
+      var h = Math.round(rect.height * dpr);
+      if (canvas.width !== w || canvas.height !== h){
+        canvas.width = w;
+        canvas.height = h;
+      }
+    }
+
     createUnityInstance(canvas, {
       arguments: [],
       dataUrl: "Build/{{{ DATA_FILENAME }}}",
@@ -108,6 +123,8 @@
       companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
       productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
       productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      // Tomamos control del tamaño del búfer para gestionar el DPI nosotros.
+      matchWebGLToCanvasSize: false,
     }, function(progress){
       var p = Math.round(progress*100);
       fill.style.width = p + "%";
@@ -118,6 +135,8 @@
       document.getElementById("full").onclick = function(){
         instance.SetFullscreen(1);
       };
+      ajustarNitidez();
+      window.addEventListener("resize", ajustarNitidez);
       // El foco en el canvas hace que el teclado llegue al juego sin un primer clic.
       canvas.focus();
     }).catch(function(message){
