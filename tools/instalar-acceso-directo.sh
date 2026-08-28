@@ -15,6 +15,33 @@ ICONO="$HOME/.local/share/icons/$ID.png"
 LANZADOR="$HOME/.local/share/applications/$ID.desktop"
 ESCRITORIO="$(xdg-user-dir DESKTOP 2>/dev/null || echo "$HOME/Desktop")"
 
+# El fichero .desktop se construye con la ruta del repo. Si esa ruta contiene un
+# salto de línea o un carácter de control, no hay forma segura de representarla en
+# la clave Exec (un salto de línea inyectaría claves nuevas en el fichero), así que
+# se rechaza antes de escribir nada. Es una precaución barata: ninguna instalación
+# legítima tiene rutas así.
+if printf '%s' "$RAIZ" | LC_ALL=C grep -q '[[:cntrl:]]'; then
+    echo "ERROR: la ruta del proyecto contiene caracteres de control:" >&2
+    printf '       %q\n' "$RAIZ" >&2
+    echo "       Muévelo a una ruta normal y vuelve a ejecutar." >&2
+    exit 1
+fi
+
+# Escapa un valor para la clave Exec según la especificación de freedesktop:
+# se envuelve en comillas dobles y se escapan  "  \  $  `  ; el signo de porcentaje
+# se duplica (%%) porque en Exec es el prefijo de los códigos de campo (%f, %u...).
+escape_exec() {
+    local v="$1"
+    v="${v//\\/\\\\}"   # \  ->  \\   (primero, para no re-escapar lo demás)
+    v="${v//\"/\\\"}"   # "  ->  \"
+    v="${v//\$/\\\$}"   # $  ->  \$
+    v="${v//\`/\\\`}"   # `  ->  \`
+    v="${v//%/%%}"      # %  ->  %%
+    printf '"%s"' "$v"
+}
+
+JUEGO_EXEC="$(escape_exec "$JUEGO")"
+
 desinstalar() {
     rm -f "$LANZADOR" "$ICONO" "$ESCRITORIO/$ID.desktop"
     rm -f "$HOME/.local/share/icons/hicolor/"*"/apps/$ID.png"
@@ -53,15 +80,20 @@ if command -v magick >/dev/null; then
 fi
 
 # --- lanzador -------------------------------------------------------------
+# Se escribe primero en un temporal y solo se instala si pasa la validación, para
+# que un fichero mal formado nunca llegue a quedar registrado en el menú.
 mkdir -p "$(dirname "$LANZADOR")"
-cat > "$LANZADOR" <<EOF
+TMP="$(mktemp "${TMPDIR:-/tmp}/$ID.XXXXXX.desktop")"
+trap 'rm -f "$TMP"' EXIT
+
+cat > "$TMP" <<EOF
 [Desktop Entry]
 Type=Application
 Version=1.0
 Name=UPTIME — Turno de Noche
 GenericName=Simulador de mantenimiento de servidores
 Comment=Un rack. Un técnico. Toda la noche.
-Exec="$JUEGO"
+Exec=$JUEGO_EXEC
 Path=$RAIZ/Build
 Icon=$ICONO
 Terminal=false
@@ -72,14 +104,18 @@ Actions=Ventana;
 
 [Desktop Action Ventana]
 Name=Abrir en ventana (1600×900)
-Exec="$JUEGO" -screen-fullscreen 0 -screen-width 1600 -screen-height 900
+Exec=$JUEGO_EXEC -screen-fullscreen 0 -screen-width 1600 -screen-height 900
 EOF
 
-chmod +x "$LANZADOR"
-
 if command -v desktop-file-validate >/dev/null; then
-    desktop-file-validate "$LANZADOR" || { echo "ERROR: el lanzador no es válido." >&2; exit 1; }
+    if ! desktop-file-validate "$TMP" >/dev/null 2>&1; then
+        echo "ERROR: el lanzador generado no es válido; no se instala nada." >&2
+        desktop-file-validate "$TMP" >&2 || true
+        exit 1
+    fi
 fi
+
+install -m 644 "$TMP" "$LANZADOR"
 
 command -v update-desktop-database >/dev/null && \
     update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
