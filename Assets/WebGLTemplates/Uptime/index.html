@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{{ PRODUCT_NAME }}}</title>
+  <meta name="description" content="Un rack. Un técnico. Toda la noche. Simulador de mantenimiento de un centro de datos.">
+  <link rel="icon" type="image/png" href="TemplateData/icon.png">
+  <style>
+    :root{
+      --bg:#0B0E14; --panel:#10141C; --line:#2A3341;
+      --text:#E6EDF3; --muted:#8B98A8; --dim:#5C6878;
+      --accent:#38BDF8; --ok:#34D399; --warn:#FBBF24; --danger:#F87171;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-height:100dvh;gap:18px;padding:16px;overflow:hidden;
+    }
+    header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;text-align:center}
+    header img{width:44px;height:44px;border-radius:10px}
+    header .t{font-size:22px;font-weight:800;letter-spacing:.5px}
+    header .t small{display:block;font-size:11px;font-weight:700;color:var(--dim);letter-spacing:2px}
+    header .tag{color:var(--accent)}
+
+    /* Encuadre 16:9 que se adapta a la ventana sin deformar el juego */
+    #frame{
+      position:relative;width:min(96vw,calc((100dvh - 150px)*1.7778));
+      aspect-ratio:16/9;max-width:1600px;
+      border:1px solid var(--line);border-radius:14px;overflow:hidden;
+      background:var(--panel);box-shadow:0 24px 70px rgba(0,0,0,.55);
+    }
+    #unity-canvas{width:100%;height:100%;display:block;background:var(--bg)}
+
+    /* Carga */
+    #loader{
+      position:absolute;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:20px;background:var(--bg);
+      transition:opacity .4s ease;
+    }
+    #loader.hidden{opacity:0;pointer-events:none}
+    #loader .name{font-size:26px;font-weight:800;letter-spacing:1px}
+    #loader .name .tag{color:var(--accent)}
+    #bar{width:min(60%,320px);height:8px;border-radius:6px;background:#222A36;overflow:hidden}
+    #fill{height:100%;width:0;border-radius:6px;
+      background:linear-gradient(90deg,var(--ok),var(--accent));transition:width .2s ease}
+    #pct{font-size:12px;color:var(--muted);letter-spacing:1px}
+    .hint{font-size:12px;color:var(--dim)}
+
+    footer{display:flex;gap:18px;color:var(--dim);font-size:12px;flex-wrap:wrap;justify-content:center}
+    footer b{color:var(--muted);font-weight:700}
+    button#full{
+      background:transparent;border:1px solid var(--line);color:var(--muted);
+      border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:700;
+    }
+    button#full:hover{border-color:var(--accent);color:var(--accent)}
+    #err{display:none;max-width:560px;text-align:center;color:var(--danger);font-size:14px;line-height:1.5}
+  </style>
+</head>
+<body>
+  <header>
+    <img src="TemplateData/icon.png" alt="">
+    <div class="t">UPTIME <span class="tag">·</span> TURNO DE NOCHE<small>UN RACK · UN TÉCNICO · TODA LA NOCHE</small></div>
+  </header>
+
+  <div id="frame">
+    <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1"></canvas>
+    <div id="loader">
+      <div class="name">UPTIME <span class="tag">·</span> Turno de Noche</div>
+      <div id="bar"><div id="fill"></div></div>
+      <div id="pct">Cargando… 0%</div>
+      <div class="hint">La primera carga descarga el motor; tarda unos segundos.</div>
+    </div>
+    <div id="err"></div>
+  </div>
+
+  <footer>
+    <span><b>Espacio</b> pausa</span>
+    <span><b>1 2 3</b> velocidad</span>
+    <span><b>Tab</b> incidencia</span>
+    <span><b>M</b> mejoras</span>
+    <span><b>R E A P</b> acciones</span>
+    <button id="full">Pantalla completa ⤢</button>
+  </footer>
+
+  <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+  <script>
+    var canvas = document.querySelector("#unity-canvas");
+    var loader = document.getElementById("loader");
+    var fill = document.getElementById("fill");
+    var pct = document.getElementById("pct");
+    var err = document.getElementById("err");
+
+    createUnityInstance(canvas, {
+      arguments: [],
+      dataUrl: "Build/{{{ DATA_FILENAME }}}",
+      frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_WASM
+      codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if USE_THREADS
+      workerUrl: "Build/{{{ WORKER_FILENAME }}}",
+#endif
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+      productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+      productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+    }, function(progress){
+      var p = Math.round(progress*100);
+      fill.style.width = p + "%";
+      pct.textContent = "Cargando… " + p + "%";
+    }).then(function(instance){
+      loader.classList.add("hidden");
+      setTimeout(function(){ loader.style.display = "none"; }, 450);
+      document.getElementById("full").onclick = function(){
+        instance.SetFullscreen(1);
+      };
+      // El foco en el canvas hace que el teclado llegue al juego sin un primer clic.
+      canvas.focus();
+    }).catch(function(message){
+      loader.style.display = "none";
+      err.style.display = "block";
+      err.textContent = "No se pudo iniciar el juego: " + message;
+    });
+  </script>
+</body>
+</html>

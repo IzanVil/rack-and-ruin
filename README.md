@@ -68,6 +68,30 @@ puedes permitirte apagar nada. A partir de ahí solo miras cómo baja el número
 
 ---
 
+## Jugar en el navegador
+
+**La forma más rápida, sin instalar nada.** Hay una build WebGL lista en `Build/WebGL/`.
+
+Publicada en GitHub Pages:
+
+### ▶ https://izanvil.github.io/rack-and-ruin/
+
+*(Se activa una sola vez: en el repo, **Settings → Pages → Source: GitHub Actions**. A partir de ahí, cada push que toque `Build/WebGL/` la redespliega solo mediante `.github/workflows/deploy-web.yml`.)*
+
+Para probarla en local antes de publicar:
+
+```bash
+./tools/servir-web.sh        # sirve en http://localhost:8000
+```
+
+Y para regenerarla tras cambiar el juego:
+
+```bash
+./tools/build-web.sh         # recompila Build/WebGL/ (tarda unos minutos)
+```
+
+---
+
 ## Jugar
 
 **Sin tocar la terminal.** Instala el lanzador una vez:
@@ -180,6 +204,7 @@ Menú **Server Game** en Unity. Todas funcionan también desde línea de comando
 | **Ejecutar prueba de humo** | Juega 5 partidas automáticas, comprueba las invariantes del modelo, construye la interfaz entera y ejercita las 7 acciones y las 8 mejoras. Informa de fallos **y del equilibrio**. |
 | **Capturar pantallas** | Renderiza la interfaz a PNG a 1600×900 sin entrar en modo Play. |
 | **Compilar ejecutable** | Genera la build de Linux. |
+| **Compilar para web (WebGL)** | Genera la build WebGL con la portada del juego. |
 | **Crear escena principal** | Regenera `Main.unity` y la añade a *Build Settings*. |
 | **Crear asset de configuración** | Crea `Settings/GameConfig.asset` para tocar el equilibrio desde el Inspector. |
 

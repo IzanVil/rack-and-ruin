@@ -1,0 +1,48 @@
+# Publica la build WebGL de UPTIME en GitHub Pages.
+#
+# La build de Unity NO se hace aquí (compilar Unity en CI necesita licencia y una
+# imagen de varios GB). Se sube la carpeta Build/WebGL ya compilada en local con
+# ./tools/build-web.sh, y este workflow la despliega en Pages.
+#
+# Requisito de una sola vez: en el repo, Settings > Pages > Source = GitHub Actions.
+name: Desplegar WebGL en Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["Build/WebGL/**", ".github/workflows/deploy-web.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar que existe la build
+        run: |
+          if [ ! -f Build/WebGL/index.html ]; then
+            echo "::error::No hay build en Build/WebGL. Ejecuta ./tools/build-web.sh y haz commit de la carpeta."
+            exit 1
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: Build/WebGL
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

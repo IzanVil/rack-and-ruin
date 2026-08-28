@@ -28,8 +28,63 @@ namespace ServerGame.EditorTools
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
 
+        [MenuItem("Server Game/Compilar para web (WebGL)", false, 61)]
+        public static void BuildWebFromMenu()
+        {
+            string path = EditorUtility.SaveFolderPanel("Carpeta de salida WebGL", "", "WebGL");
+            if (string.IsNullOrEmpty(path)) return;
+            ConfigureWebGL();
+            Build(path, BuildTarget.WebGL);
+        }
+
+        public static void BuildWeb()
+        {
+            string output = ReadArgument("-buildOutput") ?? "Build/WebGL";
+            ConfigureWebGL();
+            bool ok = Build(output, BuildTarget.WebGL);
+            if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
+        }
+
+        /// <summary>Ajustes específicos de la build web. Se fijan aquí, no a mano en el
+        /// editor, para que la build por línea de comandos sea reproducible.</summary>
+        static void ConfigureWebGL()
+        {
+            // Sin comprobaciones de excepciones a nivel de código: el juego no las usa en
+            // caliente y así el .wasm es más pequeño y rápido.
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.None;
+
+            // Brotli da el menor tamaño de descarga. Requiere que el servidor mande la
+            // cabecera Content-Encoding; GitHub Pages e itch.io lo hacen. Si el hosting no
+            // descomprime, se cambia a Gzip o Disabled y se recompila.
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = true;   // fallback JS si falta la cabecera
+            PlayerSettings.WebGL.dataCaching = true;
+            // Plantilla propia (Assets/WebGLTemplates/Uptime): portada con la identidad
+            // del juego, barra de carga y encuadre 16:9 responsive.
+            PlayerSettings.WebGL.template = "PROJECT:Uptime";
+            PlayerSettings.WebGL.powerPreference = WebGLPowerPreference.HighPerformance;
+
+            PlayerSettings.runInBackground = true;
+            PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.WebGL, ScriptingImplementation.IL2CPP);
+
+            // El juego se diseñó a 1600x900; se mantiene esa proporción por defecto.
+            PlayerSettings.defaultWebScreenWidth = 1600;
+            PlayerSettings.defaultWebScreenHeight = 900;
+        }
+
         static bool Build(string outputPath, BuildTarget target)
         {
+            // Si el módulo de la plataforma no está instalado, BuildPlayer lanza una
+            // excepción y devuelve un report vacío que, por defecto, parece "Succeeded".
+            // Se comprueba antes para no dar un falso positivo.
+            var group = BuildPipeline.GetBuildTargetGroup(target);
+            if (!BuildPipeline.IsBuildTargetSupported(group, target))
+            {
+                Debug.LogError("Build FALLIDA: el módulo de " + target +
+                               " no está instalado en este editor.");
+                return false;
+            }
+
             SceneBuilder.CreateMainSceneSilent();
 
             string directory = Path.GetDirectoryName(outputPath);
@@ -49,7 +104,8 @@ namespace ServerGame.EditorTools
             Debug.Log("Build " + summary.result + " · " + summary.totalSize / (1024 * 1024) + " MB · " +
                       summary.totalErrors + " errores · " + outputPath);
 
-            return summary.result == BuildResult.Succeeded;
+            // "Succeeded" con errores no es un éxito: exigimos las dos cosas.
+            return summary.result == BuildResult.Succeeded && summary.totalErrors == 0;
         }
 
         static string ReadArgument(string name)
