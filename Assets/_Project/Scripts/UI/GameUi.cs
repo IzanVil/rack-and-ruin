@@ -130,8 +130,19 @@ namespace ServerGame.UI
         /// <summary>Abre la tienda de mejoras desde código (herramienta de capturas).</summary>
         public void OpenUpgradesForCapture() => _upgrades.Open();
 
+        /// <summary>Cierra la tienda de mejoras desde código (herramienta de capturas).</summary>
+        public void CloseUpgradesForCapture() => _upgrades.Close();
+
         public void Tick()
         {
+            // El resumen de turno se cierra con su botón, pero si la partida avanza por
+            // cualquier otra vía (herramientas, reinicio) no debe quedarse colgado encima.
+            if (_overlay.IsOpen && _overlay.Current == OverlayView.Screen.DaySummary
+                && _session.Phase == SessionPhase.Playing)
+            {
+                _overlay.Hide();
+            }
+
             HandleInput();
             _hud.Refresh();
             _rack.Refresh();

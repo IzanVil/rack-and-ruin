@@ -1,80 +1,180 @@
-# UPTIME — Turno de Noche
+<div align="center">
 
-Simulador de mantenimiento de un centro de datos, hecho en Unity 6 (C#).
+# UPTIME · Turno de Noche
 
-Eres el único técnico de guardia. El balanceador reparte el tráfico entre los servidores
-del rack; todo lo que no se atiende cuesta dinero y reputación. El tráfico crece cada
-turno, el hardware se calienta, se desgasta y se avería, y las incidencias no avisan.
-Si la reputación llega a cero, se acabó el contrato.
+**Un rack. Un técnico. Toda la noche.**
+
+Simulador de mantenimiento de un centro de datos en tiempo real.
+Tú contra la entropía, y la entropía tiene mejor uptime.
+
+![Unity](https://img.shields.io/badge/Unity-6000.0.82f1-000000?style=flat-square&logo=unity&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-4.640%20líneas-239120?style=flat-square&logo=csharp&logoColor=white)
+![Assets binarios](https://img.shields.io/badge/assets%20binarios-0-38BDF8?style=flat-square)
+![Prueba de humo](https://img.shields.io/badge/prueba%20de%20humo-0%20fallos-34D399?style=flat-square)
+![Plataforma](https://img.shields.io/badge/Linux-x86__64-FBBF24?style=flat-square&logo=linux&logoColor=white)
+
+</div>
+
+<br>
+
+![El rack bajo presión](docs/hero.png)
+
+<div align="center"><sub>Turno 3. Un DDoS y una avería de climatización a la vez. Seis máquinas en <i>throttling</i>, una averiada, dos en mantenimiento y 363 peticiones por segundo cayéndose al suelo.</sub></div>
+
+<br>
 
 ---
 
-## Cómo jugar
+## El bucle
 
-**Esta carpeta ya es un proyecto de Unity funcionando.** Ábrela desde Unity Hub
-(*Add project from disk*) con **Unity 6000.0.82f1** y pulsa **Play**.
+El balanceador reparte el tráfico entre los servidores que están en línea. Todo lo que no
+se atiende cuesta **dinero** y **reputación**. Cada turno entra más tráfico que el anterior.
+Si la reputación llega a cero, se acabó el contrato.
 
-También hay un ejecutable ya compilado:
+Eso es todo. La dificultad no está en las reglas, está en que las cuatro cosas que se rompen
+se rompen a la vez y la solución de una empeora las otras.
+
+## Las cuatro amenazas
+
+| | Qué pasa | Cómo se para | Lo que te cuesta |
+|:--:|---|---|---|
+| 🔥 | **Calor.** Por encima de 76 °C la máquina rinde menos (*throttling*) y se desgasta más rápido | Reparto de carga, refrigeración forzada o refrigeración líquida | 110 € y 16 s de recarga por máquina |
+| 🧠 | **Fugas de memoria.** Se comen hasta el 45 % de la capacidad | Solo se limpian reiniciando | 7 s fuera del balanceador |
+| 🔓 | **Deuda de parches.** Sube sola. Un escaneo por encima de 45 puntos = brecha | Parchear, o contratar parcheo automático | 180 € y 8 s — o multa y −14 de reputación |
+| ⚙️ | **Desgaste.** A 0 % de salud la máquina se avería | Reparar antes; sustituir después | Reparar ≈ 7 €/punto · Sustituir 1.500 € |
+
+Y encima, sin avisar: picos de tráfico, ataques DDoS, fallos de disco, averías de
+climatización y picos de tensión que dejan una máquina inservible.
+
+## El dilema central
+
+> Para arreglar un servidor tienes que sacarlo del balanceador.
+> Y lo sacas justo cuando más capacidad necesitas.
+
+Mantener margen de capacidad no es prudencia: es la única forma de poder hacer mantenimiento
+sin que se caiga el servicio. Ir al límite funciona, hasta que un disco se rompe y ya no
+puedes permitirte apagar nada. A partir de ahí solo miras cómo baja el número.
+
+---
+
+## Galería
+
+<table>
+<tr>
+<td width="50%"><img src="docs/resumen.png" alt="Cierre de turno"><br><sub><b>Cierre de turno.</b> SLA, ingresos, penalizaciones y prima. Los números no mienten.</sub></td>
+<td width="50%"><img src="docs/mejoras.png" alt="Tienda de mejoras"><br><sub><b>Mejoras permanentes.</b> Ocho líneas de inversión. Nunca hay dinero para todas.</sub></td>
+</tr>
+</table>
+
+---
+
+## Jugar
+
+Hay un ejecutable ya compilado:
 
 ```bash
 ./Build/Uptime.x86_64
 ```
 
-La escena principal está en `Assets/_Project/Scenes/Main.unity` y ya está en
-*Build Settings*. Aun así, el juego arranca solo aunque abras una escena vacía: si al
-entrar en modo Play no existe ningún `GameBootstrap`, se crea uno
-(`[RuntimeInitializeOnLoadMethod]` en `GameBootstrap.cs`).
+O abre la carpeta desde Unity Hub (*Add project from disk*) con **Unity 6000.0.82f1** y pulsa
+**Play**. La escena `Assets/_Project/Scenes/Main.unity` ya está en *Build Settings*.
+
+> El juego arranca incluso desde una escena vacía: si al entrar en modo Play no existe ningún
+> `GameBootstrap`, se crea uno solo mediante `[RuntimeInitializeOnLoadMethod]`.
 
 ### Controles
 
-| Tecla | Acción |
-|---|---|
-| `Espacio` | Pausa / reanudar |
-| `1` `2` `3` | Velocidad ×1, ×2, ×4 |
-| `Tab` | Saltar al siguiente servidor con problemas |
-| `M` | Abrir/cerrar la tienda de mejoras |
-| `Esc` | Cerrar la tienda |
-| `R` | Reiniciar el servidor seleccionado |
-| `E` | Refrigeración forzada |
-| `A` | Reparar hardware |
-| `P` | Aplicar parches |
-| `N` | Silenciar el sonido |
-
-### Las cuatro amenazas
-
-- **Calor.** Por encima de 76 °C el servidor rinde menos (*throttling*) y se desgasta
-  más rápido. Se combate repartiendo mejor la carga, con refrigeración forzada (que
-  tiene 16 s de recarga por máquina) o con la mejora de refrigeración líquida.
-- **Fugas de memoria.** Recortan hasta un 45 % de la capacidad. Solo se limpian
-  reiniciando, y reiniciar deja la máquina 7 s fuera del balanceador.
-- **Deuda de parches.** Sube sola. Si un escaneo de seguridad encuentra una máquina por
-  encima de 45 puntos, hay brecha: multa y −14 de reputación.
-- **Desgaste.** A 0 % de salud la máquina se avería y hay que sustituirla (1.500 €).
-
-### El dilema central
-
-Para arreglar una máquina hay que sacarla del balanceador, y eso reduce la capacidad
-justo cuando más falta hace. Mantener un margen de capacidad no es opcional: es lo que
-te permite hacer mantenimiento sin que se caiga el servicio.
+| | | | |
+|---|---|---|---|
+| `Espacio` Pausa | `1` `2` `3` Velocidad ×1 ×2 ×4 | `Tab` Siguiente incidencia | `M` Mejoras |
+| `R` Reiniciar | `E` Refrigerar | `A` Reparar | `P` Parchear |
+| `Esc` Cerrar tienda | `N` Silenciar | | |
 
 ---
 
-## Herramientas del menú *Server Game*
+## Arquitectura
 
-| Menú | Qué hace |
+<details>
+<summary><b>Estructura de carpetas</b></summary>
+
+```
+Assets/_Project/Scripts/
+├── Core/                    Simulación y reglas. C# puro salvo GameBootstrap.
+│   ├── GameBootstrap.cs     Punto de entrada. Crea la sesión y la interfaz.
+│   ├── GameSession.cs       Estado, ciclo de turnos, acciones, economía.
+│   ├── GameConfig.cs        ScriptableObject con todo el equilibrio.
+│   ├── ServerUnit.cs        Un servidor: térmica, desgaste, tareas.
+│   ├── Rack.cs              Balanceo de carga por llenado.
+│   ├── IncidentSystem.cs    Incidencias y efectos temporales.
+│   └── Upgrades.cs          Catálogo de mejoras y modificadores.
+├── Events/
+│   └── GameEvents.cs        Bus de eventos por instancia y sus payloads.
+├── UI/                      Interfaz, construida enteramente por código.
+│   ├── GameUi.cs            Monta el lienzo y coordina las vistas.
+│   ├── Ui.cs                Fábrica de widgets y helpers de anclaje.
+│   ├── UiTheme.cs           Paleta y tipografía.
+│   ├── HudView.cs           Barra superior y franja de incidencias.
+│   ├── RackView.cs          Rejilla de servidores y bahías libres.
+│   ├── ServerCardView.cs    Tarjeta de un servidor.
+│   ├── InspectorView.cs     Detalle y acciones.
+│   ├── LogView.cs           Consola de eventos.
+│   ├── UpgradesView.cs      Tienda modal.
+│   └── OverlayView.cs       Intro, cierre de turno y fin de partida.
+├── Utils/
+│   ├── Fmt.cs               Formateo de números y tiempos.
+│   ├── TextureFactory.cs    Sprites generados por código (SDF).
+│   └── Sfx.cs               Sonido sintetizado.
+└── Editor/
+    ├── SmokeTest.cs         Prueba de humo y banco de equilibrio.
+    ├── SceneBuilder.cs      Escena y asset de configuración.
+    ├── BuildTools.cs        Compilación del ejecutable.
+    └── ScreenshotTool.cs    Capturas renderizadas a PNG.
+```
+
+</details>
+
+### Cinco decisiones que explican el resto del código
+
+**Cero assets binarios.** Los sprites son rectángulos redondeados generados con una función
+de distancia con signo, el sonido son tonos sintetizados con envolvente y la tipografía es la
+que trae Unity de serie. No hay ni un `.png` ni un `.wav` ni un prefab en todo el proyecto:
+la carpeta `Assets/_Project` se copia a otro proyecto y funciona tal cual.
+
+**La lógica no sabe que existe una interfaz.** `GameSession.GetActions(unit)` devuelve qué
+acciones hay, cuánto cuestan, cuánto tardan y **por qué** están o no disponibles. La interfaz
+solo las pinta. Añadir una acción nueva no obliga a tocar ni una línea de UI.
+
+**Bus de eventos por instancia, no estático.** Un bus estático deja suscriptores colgados
+entre partidas cuando el *domain reload* está desactivado, que es el fallo clásico. Los
+sucesos puntuales van por el bus; los valores numéricos se leen por sondeo cada frame, que
+con este número de widgets sale más simple y más barato.
+
+**Paso de simulación troceado.** `GameSession.Tick` parte el delta en pasos de 50 ms como
+máximo. La térmica y el desgaste no dependen de los FPS ni se descuadran a velocidad ×4.
+
+**Realimentación térmica acotada a propósito.** El calor se calcula contra la capacidad
+*nominal*, no contra la efectiva. Si no, el *throttling* reduciría la capacidad, lo que
+subiría la ocupación, lo que subiría el calor: una espiral de la que es imposible salir.
+Así el throttling duele sin ser una sentencia.
+
+---
+
+## Herramientas del editor
+
+Menú **Server Game** en Unity. Todas funcionan también desde línea de comandos.
+
+| Herramienta | Qué hace |
 |---|---|
-| **Ejecutar prueba de humo** | Juega 5 partidas automáticas, comprueba las invariantes del modelo, construye la interfaz entera y ejercita todas las acciones y mejoras. Informa de fallos y del equilibrio. |
+| **Ejecutar prueba de humo** | Juega 5 partidas automáticas, comprueba las invariantes del modelo, construye la interfaz entera y ejercita las 7 acciones y las 8 mejoras. Informa de fallos **y del equilibrio**. |
 | **Capturar pantallas** | Renderiza la interfaz a PNG a 1600×900 sin entrar en modo Play. |
-| **Compilar ejecutable (Linux)** | Genera la build. |
-| **Crear escena principal** | Regenera `Main.unity` y la añade a Build Settings. |
+| **Compilar ejecutable** | Genera la build de Linux. |
+| **Crear escena principal** | Regenera `Main.unity` y la añade a *Build Settings*. |
 | **Crear asset de configuración** | Crea `Settings/GameConfig.asset` para tocar el equilibrio desde el Inspector. |
-
-Todas funcionan también desde línea de comandos, por ejemplo:
 
 ```bash
 UNITY=~/Unity/Hub/Editor/6000.0.82f1/Editor/Unity
 
-# Prueba de humo (sale con código 1 si algo falla: sirve para CI)
+# Prueba de humo — sale con código 1 si algo falla, así que vale para CI
 "$UNITY" -batchmode -nographics -quit -projectPath . \
   -executeMethod ServerGame.EditorTools.SmokeTest.RunBatch -logFile -
 
@@ -83,93 +183,44 @@ UNITY=~/Unity/Hub/Editor/6000.0.82f1/Editor/Unity
   -executeMethod ServerGame.EditorTools.BuildTools.BuildLinux \
   -buildOutput Build/Uptime.x86_64 -logFile -
 
-# Capturas (necesita un servidor gráfico, sin -nographics)
+# Capturas — necesita servidor gráfico, por eso sin -nographics
 "$UNITY" -batchmode -quit -projectPath . \
   -executeMethod ServerGame.EditorTools.ScreenshotTool.CaptureBatch \
-  -screenshotOutput Screenshots -logFile -
+  -screenshotOutput docs -logFile -
 ```
 
 ---
 
-## Arquitectura
+## Equilibrio
 
-```
-Assets/_Project/Scripts/
-├── Core/          Simulación y reglas. C# puro salvo GameBootstrap.
-│   ├── GameBootstrap.cs   MonoBehaviour de entrada. Crea sesión + interfaz.
-│   ├── GameSession.cs     Estado de la partida, ciclo de turnos, acciones, economía.
-│   ├── GameConfig.cs      ScriptableObject con todos los números de equilibrio.
-│   ├── ServerUnit.cs      Modelo de un servidor: térmica, desgaste, tareas.
-│   ├── Rack.cs            Balanceo de carga por llenado con varias pasadas.
-│   ├── IncidentSystem.cs  Generador de incidencias y efectos temporales.
-│   └── Upgrades.cs        Catálogo de mejoras y modificadores derivados.
-├── Events/
-│   └── GameEvents.cs      Bus de eventos por instancia (no estático) y sus payloads.
-├── UI/            Interfaz, construida enteramente por código.
-│   ├── GameUi.cs          Monta el lienzo, coordina las vistas y el teclado.
-│   ├── Ui.cs              Fábrica de widgets y helpers de anclaje.
-│   ├── UiTheme.cs         Paleta y tipografía.
-│   ├── HudView.cs         Barra superior y franja de incidencias.
-│   ├── RackView.cs        Rejilla de servidores y bahías libres.
-│   ├── ServerCardView.cs  Tarjeta de un servidor.
-│   ├── InspectorView.cs   Panel de detalle y acciones.
-│   ├── LogView.cs         Consola de eventos.
-│   ├── UpgradesView.cs    Tienda modal.
-│   └── OverlayView.cs     Intro, cierre de turno y fin de partida.
-├── Utils/
-│   ├── Fmt.cs             Formateo de números y tiempos.
-│   ├── TextureFactory.cs  Sprites generados por código (rectángulos redondeados, SDF).
-│   └── Sfx.cs             Sonido sintetizado, sin archivos de audio.
-└── Editor/
-    ├── SmokeTest.cs       Prueba de humo y banco de pruebas de equilibrio.
-    ├── SceneBuilder.cs    Creación de la escena y del asset de configuración.
-    ├── BuildTools.cs      Compilación del ejecutable.
-    └── ScreenshotTool.cs  Capturas renderizadas a PNG.
-```
+Los números no están puestos a ojo: salen de la prueba de humo, que juega cinco partidas
+completas con un jugador automático que hace mantenimiento razonable.
 
-### Decisiones que conviene conocer
-
-- **Cero assets binarios.** Sprites, sonidos y tipografía se generan en tiempo de
-  ejecución. No hay prefabs ni texturas que se puedan corromper al reimportar, y la
-  carpeta `Assets/_Project` se puede copiar tal cual a otro proyecto.
-- **La lógica no sabe nada de la interfaz.** `GameSession.GetActions(unit)` devuelve qué
-  acciones existen, cuánto cuestan y por qué están o no disponibles; la interfaz solo las
-  pinta. Añadir una acción no obliga a tocar la UI.
-- **Bus de eventos por instancia.** Un bus estático dejaría suscriptores colgados entre
-  partidas cuando el *domain reload* está desactivado. Los eventos puntuales (log, cierre
-  de turno, fin de partida) van por el bus; los valores numéricos se leen por sondeo cada
-  frame, que con este número de widgets sale más barato y más simple.
-- **Paso de simulación troceado.** `GameSession.Tick` parte el delta en pasos de 50 ms
-  como máximo, así la física térmica y el desgaste no dependen de los FPS ni se rompen
-  a velocidad ×4.
-- **Sin *assembly definitions*.** Todo compila en `Assembly-CSharp`, que referencia
-  `UnityEngine.UI` automáticamente en cualquier versión de Unity.
-- **El modo de entrada está en «Both»** (`activeInputHandler: 2`), para que convivan los
-  atajos del Input Manager clásico y el módulo de UI del nuevo Input System.
-
----
-
-## Ajustar la dificultad
-
-Menú **Server Game → Crear asset de configuración** genera
-`Assets/_Project/Settings/GameConfig.asset`. Asígnalo al campo *Config* del objeto
-`[Server Game]` de la escena y toca los valores desde el Inspector.
-
-Los números actuales están validados con la prueba de humo: cinco partidas automáticas
-con un jugador que hace mantenimiento razonable aguantan de media **7,6 turnos**
-(peor 7, mejor 9), y un jugador que no hace nada muere en el turno 3.
-
-Las palancas con más efecto:
-
-| Campo | Qué hace |
+| Jugador | Turnos que aguanta |
 |---|---|
-| `demandGrowthPerDay` | Cuánto sube el tráfico cada turno. Es la dificultad principal. |
+| No hace nada | **3** |
+| Mantenimiento razonable | **7,6 de media** (peor 7, mejor 9) |
+| Usando bien las mejoras | más |
+
+Para ajustarlo: menú **Server Game → Crear asset de configuración**, y lo asignas al campo
+*Config* del objeto `[Server Game]` de la escena.
+
+| Campo | Qué mueve |
+|---|---|
+| `demandGrowthPerDay` | Cuánto sube el tráfico cada turno. **Es la dificultad principal.** |
 | `serverBaseCapacity` | Peticiones por segundo de un servidor de nivel 1. |
 | `revenuePerThousandServed` | Ritmo al que entra el dinero. |
-| `wearPerSecondAtFullLoad` / `heatWearMultiplier` | Cada cuánto hay que reparar. |
+| `wearPerSecondAtFullLoad` · `heatWearMultiplier` | Cada cuánto hay que reparar. |
 | `memoryLeakPerSecond` | Cada cuánto hay que reiniciar. |
 | `incidentIntervalBase` | Frecuencia de las incidencias. |
 | `coolingCooldownSeconds` | Cuánto se puede abusar de la refrigeración forzada. |
 
-Después de cambiar cualquier cosa, **vuelve a pasar la prueba de humo**: te dirá si el
-juego se ha vuelto imposible o trivial.
+> Después de tocar cualquier cosa, **vuelve a pasar la prueba de humo**. Te avisa si el juego
+> se ha vuelto imposible o trivial, y te da la curva de turnos para comprobarlo.
+
+---
+
+<div align="center">
+<sub><b>rack-and-ruin</b> · <i>to go to rack and ruin</i>: irse al garete.<br>
+Aquí es literal.</sub>
+</div>

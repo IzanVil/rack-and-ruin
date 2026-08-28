@@ -10,6 +10,9 @@ namespace ServerGame.UI
     /// partida. Se construye una sola vez y cada pantalla rellena las mismas piezas.</summary>
     public sealed class OverlayView
     {
+        /// <summary>Qué pantalla ocupa el modal en este momento.</summary>
+        public enum Screen { None, Intro, DaySummary, GameOver }
+
         const int MaxRows = 8;
 
         readonly RectTransform _root;
@@ -26,6 +29,7 @@ namespace ServerGame.UI
         Action _secondaryAction;
 
         public bool IsOpen => _root.gameObject.activeSelf;
+        public Screen Current { get; private set; } = Screen.None;
 
         public OverlayView(Transform parent)
         {
@@ -94,10 +98,12 @@ namespace ServerGame.UI
         public void Hide()
         {
             _root.gameObject.SetActive(false);
+            Current = Screen.None;
         }
 
-        void Show()
+        void Show(Screen screen)
         {
+            Current = screen;
             _root.SetAsLastSibling();
             _root.gameObject.SetActive(true);
         }
@@ -143,7 +149,7 @@ namespace ServerGame.UI
             _primaryAction = () => { Hide(); onStart?.Invoke(); };
             _secondary.Rect.gameObject.SetActive(false);
 
-            Show();
+            Show(Screen.Intro);
         }
 
         public void ShowDaySummary(DaySummary summary, Action onContinue, Action onUpgrades)
@@ -177,7 +183,7 @@ namespace ServerGame.UI
             _secondary.Label.text = "MEJORAS  [M]";
             _secondaryAction = () => onUpgrades?.Invoke();
 
-            Show();
+            Show(Screen.DaySummary);
         }
 
         public void ShowGameOver(GameOverInfo info, Action onRestart)
@@ -200,7 +206,7 @@ namespace ServerGame.UI
             _primaryAction = () => { Hide(); onRestart?.Invoke(); };
             _secondary.Rect.gameObject.SetActive(false);
 
-            Show();
+            Show(Screen.GameOver);
         }
     }
 }

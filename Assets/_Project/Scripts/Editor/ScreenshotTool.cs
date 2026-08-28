@@ -84,18 +84,20 @@ namespace ServerGame.EditorTools
                 Render(camera, rt, Path.Combine(folder, "01-intro.png"));
 
                 ui.SkipIntro();
-                for (int i = 0; i < 900; i++)
-                {
-                    session.Tick(0.05f);
-                    if (session.Phase != SessionPhase.Playing) break;
-                }
-                if (session.Rack.Count > 2) session.Select(session.Rack[2]);
+                BuildInterestingState(session, cfg);
                 ui.Tick();
                 Render(camera, rt, Path.Combine(folder, "02-partida.png"));
 
                 ui.OpenUpgradesForCapture();
                 ui.Tick();
                 Render(camera, rt, Path.Combine(folder, "03-mejoras.png"));
+                ui.CloseUpgradesForCapture();
+
+                // Se deja correr hasta el cierre del turno para capturar el resumen.
+                for (int i = 0; i < 40000 && session.Phase == SessionPhase.Playing; i++)
+                    session.Tick(0.05f);
+                ui.Tick();
+                Render(camera, rt, Path.Combine(folder, "04-resumen.png"));
 
                 Debug.Log("Capturas guardadas en " + Path.GetFullPath(folder));
                 return true;
@@ -113,6 +115,44 @@ namespace ServerGame.EditorTools
                 if (host != null) UnityEngine.Object.DestroyImmediate(host);
                 if (cfg != null) UnityEngine.Object.DestroyImmediate(cfg);
             }
+        }
+
+        /// <summary>Lleva la partida a un momento con tensión: rack poblado, tráfico alto,
+        /// un ataque en curso y máquinas en distintos estados. Una captura del turno 1 con
+        /// todo en verde no cuenta de qué va el juego.</summary>
+        static void BuildInterestingState(GameSession session, GameConfig cfg)
+        {
+            session.Grant(12000f);
+
+            var newServer = UpgradeState.Find(UpgradeId.NewServer);
+            for (int i = 0; i < 4; i++) session.TryBuyUpgrade(newServer);
+            session.TryBuyUpgrade(UpgradeState.Find(UpgradeId.Cooling));
+            session.TryBuyUpgrade(UpgradeState.Find(UpgradeId.LoadBalancer));
+
+            // Dos turnos sin mantenimiento: el hardware se calienta y se desgasta.
+            int guard = 0;
+            while (session.Day < 3 && guard++ < 40000)
+            {
+                session.Tick(0.05f);
+                if (session.Phase == SessionPhase.DayReview) session.StartNextDay();
+                else if (session.Phase != SessionPhase.Playing) return;
+            }
+
+            for (int i = 0; i < 600 && session.Phase == SessionPhase.Playing; i++)
+                session.Tick(0.05f);
+
+            if (session.Rack.Count < 7) return;
+
+            session.Incidents.Trigger(IncidentId.Ddos, session);
+            session.Rack[1].Damage(68f, cfg);
+            session.Rack[4].Fail();
+            session.Execute(ServerActionId.Reboot, session.Rack[5]);
+            session.Execute(ServerActionId.Patch, session.Rack[6]);
+
+            for (int i = 0; i < 60 && session.Phase == SessionPhase.Playing; i++)
+                session.Tick(0.05f);
+
+            session.Select(session.Rack[1]);
         }
 
         static void Render(Camera camera, RenderTexture rt, string path)
