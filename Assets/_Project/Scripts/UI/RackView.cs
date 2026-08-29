@@ -65,6 +65,7 @@ namespace ServerGame.UI
             colors.highlightedColor = new Color(1.5f, 1.5f, 1.5f, 1f);
             button.colors = colors;
             if (onClick != null) button.onClick.AddListener(() => onClick());
+            slot.gameObject.AddComponent<PointerCursorHint>().Button = button;
 
             var label = Ui.NewText("Label", slot.rectTransform, "BAHÍA LIBRE", 12, UiTheme.TextDim,
                 TextAnchor.MiddleCenter, FontStyle.Bold);

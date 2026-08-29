@@ -33,6 +33,9 @@ namespace ServerGame.UI
         readonly Text _stripText;
 
         public UiButton UpgradesButton { get; }
+#if !UNITY_WEBGL
+        public UiButton ExitButton { get; }
+#endif
 
         public HudView(Transform parent, GameSession session)
         {
@@ -60,8 +63,27 @@ namespace ServerGame.UI
             _slaValue = Block(root, 760f, "SLA DEL TURNO", 150f, out _slaBar, true);
             _clockValue = Block(root, 910f, "TIEMPO RESTANTE", 150f, out _clockBar, true);
 
+            // La versión web se cierra desde la pestaña del navegador; Application.Quit()
+            // no hace nada ahí, así que el botón de salir solo tiene sentido en la app nativa.
+#if !UNITY_WEBGL
+            const float ExitReserved = 88f; // 80 de ancho + 8 de separación con MEJORAS
+#else
+            const float ExitReserved = 0f;
+#endif
             var controls = Ui.NewRect("Controls", root);
-            Ui.Right(controls, 400f, 16f, 16f, 16f);
+            Ui.Right(controls, 400f + ExitReserved, 16f, 16f, 16f);
+
+#if !UNITY_WEBGL
+            ExitButton = Ui.NewButton("Exit", controls, "SALIR",
+                UiTheme.PanelRaised, UiTheme.Danger, 13, UiTheme.RadiusSmall);
+            var exitRect = ExitButton.Rect;
+            exitRect.anchorMin = new Vector2(0f, 0.5f);
+            exitRect.anchorMax = new Vector2(0f, 0.5f);
+            exitRect.pivot = new Vector2(0f, 0.5f);
+            exitRect.anchoredPosition = new Vector2(0f, 0f);
+            exitRect.sizeDelta = new Vector2(80f, 38f);
+            ExitButton.OnClick(RequestExit);
+#endif
 
             UpgradesButton = Ui.NewButton("Upgrades", controls, "MEJORAS  [M]",
                 UiTheme.AccentDeep, UiTheme.TextPrimary, 14, UiTheme.RadiusSmall);
@@ -69,7 +91,7 @@ namespace ServerGame.UI
             upRect.anchorMin = new Vector2(0f, 0.5f);
             upRect.anchorMax = new Vector2(0f, 0.5f);
             upRect.pivot = new Vector2(0f, 0.5f);
-            upRect.anchoredPosition = new Vector2(0f, 0f);
+            upRect.anchoredPosition = new Vector2(ExitReserved, 0f);
             upRect.sizeDelta = new Vector2(150f, 38f);
 
             string[] labels = { "II", "1×", "2×", "4×" };
@@ -204,5 +226,16 @@ namespace ServerGame.UI
             _stripBg.color = new Color(UiTheme.Critical.r, UiTheme.Critical.g, UiTheme.Critical.b, 0.12f);
             _stripText.text = _sb.ToString();
         }
+
+#if !UNITY_WEBGL
+        static void RequestExit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+#endif
     }
 }

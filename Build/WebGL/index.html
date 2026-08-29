@@ -94,14 +94,20 @@
     var pct = document.getElementById("pct");
     var err = document.getElementById("err");
 
-    // Nitidez en pantallas de alta densidad (HiDPI/retina): el búfer de render debe
-    // renderizar por encima del tamaño mostrado (supersampling 2x-3x): así el
-      // texto queda nítido aunque la pantalla tenga devicePixelRatio = 1.
+    // Supersampling: el búfer de render se genera por encima del tamaño mostrado
+    // (2x-3x los píxeles CSS) y el navegador lo reduce. Así el texto de Unity queda
+    // nítido aunque la pantalla tenga devicePixelRatio = 1, que es donde uGUI con
+    // fuente dinámica se veía blando. Para esta UI ligera el coste de GPU es trivial;
+    // el tope de 3x evita excesos en pantallas 4K.
     function ajustarNitidez(){
       var dpr = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
       var rect = canvas.getBoundingClientRect();
-      var w = Math.round(rect.width * dpr), h = Math.round(rect.height * dpr);
-      if (canvas.width !== w || canvas.height !== h){ canvas.width = w; canvas.height = h; }
+      var w = Math.round(rect.width * dpr);
+      var h = Math.round(rect.height * dpr);
+      if (canvas.width !== w || canvas.height !== h){
+        canvas.width = w;
+        canvas.height = h;
+      }
     }
 
     // Se ajusta la resolución ANTES de arrancar Unity: así el contexto gráfico
@@ -118,6 +124,7 @@
       companyName: "Izan",
       productName: "UPTIME - Turno de Noche",
       productVersion: "1.0",
+      // Tomamos control del tamaño del búfer para gestionar el DPI nosotros.
       matchWebGLToCanvasSize: false,
     }, function(progress){
       var p = Math.round(progress*100);
@@ -129,9 +136,9 @@
       document.getElementById("full").onclick = function(){
         instance.SetFullscreen(1);
       };
-      // El foco en el canvas hace que el teclado llegue al juego sin un primer clic.
       ajustarNitidez();
       window.addEventListener("resize", ajustarNitidez);
+      // El foco en el canvas hace que el teclado llegue al juego sin un primer clic.
       canvas.focus();
     }).catch(function(message){
       loader.style.display = "none";

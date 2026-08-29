@@ -46,6 +46,7 @@ namespace ServerGame.UI
             button.targetGraphic = _background;
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => onClick(Unit));
+            _background.gameObject.AddComponent<PointerCursorHint>().Button = button;
 
             _name = Ui.NewText("Name", Root, unit.Name, 16, UiTheme.TextPrimary,
                 TextAnchor.MiddleLeft, FontStyle.Bold);

@@ -148,6 +148,7 @@ namespace ServerGame.UI
             var button = rt.gameObject.AddComponent<Button>();
             button.targetGraphic = img;
             button.transition = Selectable.Transition.ColorTint;
+            rt.gameObject.AddComponent<PointerCursorHint>().Button = button;
 
             var labelText = NewText("Label", rt, label, fontSize, foreground,
                 withSubLabel ? TextAnchor.LowerLeft : TextAnchor.MiddleCenter, FontStyle.Bold);
