@@ -23,7 +23,7 @@ namespace ServerGame.EditorTools
 
         public static void BuildLinux()
         {
-            string output = ResolveOutput("Build/Uptime.x86_64");
+            string output = ReadArgument("-buildOutput") ?? "Build/Uptime.x86_64";
             bool ok = Build(output, BuildTarget.StandaloneLinux64);
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
         }
@@ -39,7 +39,7 @@ namespace ServerGame.EditorTools
 
         public static void BuildWeb()
         {
-            string output = ResolveOutput("Build/WebGL");
+            string output = ReadArgument("-buildOutput") ?? "Build/WebGL";
             ConfigureWebGL();
             bool ok = Build(output, BuildTarget.WebGL);
             if (Application.isBatchMode) EditorApplication.Exit(ok ? 0 : 1);
@@ -105,16 +105,6 @@ namespace ServerGame.EditorTools
 
             // "Succeeded" con errores no es un éxito: exigimos las dos cosas.
             return summary.result == BuildResult.Succeeded && summary.totalErrors == 0;
-        }
-
-        /// <summary>Ruta de salida de la build. <c>-buildOutput</c> es la que pasan los
-        /// scripts de tools/. <c>-customBuildPath</c> es la que pasa game-ci/unity-builder
-        /// cuando se le indica un buildMethod propio, y llega absoluta; sin este segundo
-        /// caso la build de CI caería en una ruta relativa al directorio de trabajo del
-        /// contenedor en vez de al proyecto.</summary>
-        static string ResolveOutput(string fallback)
-        {
-            return ReadArgument("-buildOutput") ?? ReadArgument("-customBuildPath") ?? fallback;
         }
 
         static string ReadArgument(string name)

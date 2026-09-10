@@ -74,10 +74,9 @@ puedes permitirte apagar nada. A partir de ahí solo miras cómo baja el número
 
 ### ▶ https://izanvil.github.io/rack-and-ruin/
 
-La build **no se versiona**. Cada push a `main` que toque `Assets/`, `Packages/` o
-`ProjectSettings/` la compila en CI con GameCI y la despliega en Pages
-(`.github/workflows/deploy-web.yml`). Así lo publicado siempre corresponde al código, y la
-historia del repo no engorda 7 MB por publicación.
+La build **no se versiona en `main`**: se compila en local y se publica a una rama huérfana
+`gh-pages` que se reescribe entera en cada publicación. Así ni `main` ni `gh-pages` acumulan
+los ~7 MB de binarios de cada versión.
 
 Tres cosas que solo pasan en el navegador:
 
@@ -103,29 +102,18 @@ Y para regenerarla tras cambiar el juego:
 ./tools/build-web.sh         # recompila Build/WebGL/ (tarda unos minutos)
 ```
 
-Lo que sale de ahí es solo para mirarlo en local: publicar es cosa de CI.
+Y para publicarla:
 
-<details>
-<summary><b>Puesta en marcha del despliegue (una sola vez)</b></summary>
+```bash
+./tools/publicar-web.sh                  # compila y publica
+./tools/publicar-web.sh --sin-compilar   # publica la build que ya haya
+```
 
-1. **Settings → Pages → Source: GitHub Actions.**
-2. Tres secretos en **Settings → Secrets and variables → Actions**, con la licencia de
-   Unity que CI necesita para arrancar el editor:
+El commit de `gh-pages` lleva el SHA de `main` del que salió la build, así que siempre se
+puede saber qué código hay publicado. Si el árbol está sucio al publicar, avisa.
 
-   | Secreto | Qué es |
-   |---|---|
-   | `UNITY_EMAIL` | el correo de la cuenta de Unity |
-   | `UNITY_PASSWORD` | su contraseña |
-   | `UNITY_LICENSE` | el contenido del fichero `Unity_lic.ulf` |
-
-   El `.ulf` se saca con el flujo de activación de GameCI:
-   <https://game.ci/docs/github/activation>.
-
-Para probar el workflow sin tocar el sitio publicado: **Actions → Run workflow** sobre una
-rama que no sea `main`. Compila y se detiene ahí, porque el job de despliegue está limitado
-a `main`.
-
-</details>
+> **Puesta en marcha (una sola vez):** en el repo, **Settings → Pages → Source: Deploy from
+> a branch**, rama `gh-pages`, carpeta `/ (root)`.
 
 ---
 

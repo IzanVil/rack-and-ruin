@@ -6,9 +6,8 @@
 #
 # Salida: Build/WebGL/  (index.html + Build/ + carpetas de Unity)
 #
-# Es para verla en local con ./tools/servir-web.sh, o para subirla a mano a itch.io o
-# cualquier hosting estático. La carpeta NO se versiona: lo que se publica en Pages lo
-# compila CI en cada push (.github/workflows/deploy-web.yml).
+# La carpeta NO se versiona. Para verla en local, ./tools/servir-web.sh; para publicarla
+# en Pages, ./tools/publicar-web.sh (que llama a este script y empuja el resultado).
 #
 set -euo pipefail
 
