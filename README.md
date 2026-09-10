@@ -70,13 +70,14 @@ puedes permitirte apagar nada. A partir de ahí solo miras cómo baja el número
 
 ## Jugar en el navegador
 
-**La forma más rápida, sin instalar nada.** Hay una build WebGL lista en `Build/WebGL/`.
-
-Publicada en GitHub Pages:
+**La forma más rápida, sin instalar nada.**
 
 ### ▶ https://izanvil.github.io/rack-and-ruin/
 
-*(Se activa una sola vez: en el repo, **Settings → Pages → Source: GitHub Actions**. A partir de ahí, cada push que toque `Build/WebGL/` la redespliega solo mediante `.github/workflows/deploy-web.yml`.)*
+La build **no se versiona**. Cada push a `main` que toque `Assets/`, `Packages/` o
+`ProjectSettings/` la compila en CI con GameCI y la despliega en Pages
+(`.github/workflows/deploy-web.yml`). Así lo publicado siempre corresponde al código, y la
+historia del repo no engorda 7 MB por publicación.
 
 Tres cosas que solo pasan en el navegador:
 
@@ -101,6 +102,30 @@ Y para regenerarla tras cambiar el juego:
 ```bash
 ./tools/build-web.sh         # recompila Build/WebGL/ (tarda unos minutos)
 ```
+
+Lo que sale de ahí es solo para mirarlo en local: publicar es cosa de CI.
+
+<details>
+<summary><b>Puesta en marcha del despliegue (una sola vez)</b></summary>
+
+1. **Settings → Pages → Source: GitHub Actions.**
+2. Tres secretos en **Settings → Secrets and variables → Actions**, con la licencia de
+   Unity que CI necesita para arrancar el editor:
+
+   | Secreto | Qué es |
+   |---|---|
+   | `UNITY_EMAIL` | el correo de la cuenta de Unity |
+   | `UNITY_PASSWORD` | su contraseña |
+   | `UNITY_LICENSE` | el contenido del fichero `Unity_lic.ulf` |
+
+   El `.ulf` se saca con el flujo de activación de GameCI:
+   <https://game.ci/docs/github/activation>.
+
+Para probar el workflow sin tocar el sitio publicado: **Actions → Run workflow** sobre una
+rama que no sea `main`. Compila y se detiene ahí, porque el job de despliegue está limitado
+a `main`.
+
+</details>
 
 ---
 

@@ -5,7 +5,10 @@
 #   ./tools/build-web.sh
 #
 # Salida: Build/WebGL/  (index.html + Build/ + carpetas de Unity)
-# Publicable tal cual en GitHub Pages, itch.io o cualquier hosting estático.
+#
+# Es para verla en local con ./tools/servir-web.sh, o para subirla a mano a itch.io o
+# cualquier hosting estático. La carpeta NO se versiona: lo que se publica en Pages lo
+# compila CI en cada push (.github/workflows/deploy-web.yml).
 #
 set -euo pipefail
 

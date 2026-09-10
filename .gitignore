@@ -3,11 +3,6 @@
 /[Tt]emp/
 /[Oo]bj/
 /[Bb]uild/
-# ... pero se versiona SOLO la build web (para publicarla en Pages),
-# no el resto de artefactos de Build/.
-!/Build/
-/Build/*
-!/Build/WebGL/
 /[Bb]uilds/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
