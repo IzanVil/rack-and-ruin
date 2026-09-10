@@ -54,6 +54,10 @@ namespace ServerGame.EditorTools
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
             PlayerSettings.WebGL.decompressionFallback = true;   // fallback JS si falta la cabecera
             PlayerSettings.WebGL.dataCaching = true;
+            // Nombres por hash de contenido: al publicar una versión nueva cambian los
+            // nombres de fichero, así que ni la caché del navegador ni el dataCaching
+            // (que indexa por URL en IndexedDB) pueden servir la build anterior.
+            PlayerSettings.WebGL.nameFilesAsHashes = true;
             // Plantilla propia (Assets/WebGLTemplates/Uptime): portada con la identidad
             // del juego, barra de carga y encuadre 16:9 responsive.
             PlayerSettings.WebGL.template = "PROJECT:Uptime";

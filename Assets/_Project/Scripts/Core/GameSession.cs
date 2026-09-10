@@ -309,6 +309,18 @@ namespace ServerGame.Core
             Speed = Speed <= 0f ? 1f : 0f;
         }
 
+        /// <summary>Pausa porque la partida ha dejado de recibir frames (en web, la pestaña
+        /// pasó a segundo plano). Se deja pausado a propósito en vez de reanudar solo: el
+        /// jugador vuelve a un rack que puede haber cambiado y merece mirarlo antes de que
+        /// el reloj siga corriendo.</summary>
+        public void PauseFromBackground()
+        {
+            if (Phase != SessionPhase.Playing || IsPaused) return;
+            Speed = 0f;
+            Bus.Log("Pausado: la pestaña dejó de verse.", LogLevel.Info, Day, DayTime);
+            Bus.RaiseChanged();
+        }
+
         public void Select(ServerUnit unit)
         {
             if (unit == null) return;

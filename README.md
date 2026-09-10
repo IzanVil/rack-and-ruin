@@ -78,6 +78,18 @@ Publicada en GitHub Pages:
 
 *(Se activa una sola vez: en el repo, **Settings → Pages → Source: GitHub Actions**. A partir de ahí, cada push que toque `Build/WebGL/` la redespliega solo mediante `.github/workflows/deploy-web.yml`.)*
 
+Tres cosas que solo pasan en el navegador:
+
+- **Si cambias de pestaña, la partida se pausa sola.** El navegador deja de dar frames a las
+  pestañas que no se ven, y al volver entregaría de golpe todo el tiempo transcurrido. Se
+  pausa y se queda pausado, para que vuelvas a un rack que puedas mirar antes de que el
+  reloj siga.
+- **En pantallas estrechas no se descarga nada.** Por debajo de 720 px de encuadre la
+  interfaz no se lee, así que la página lo dice antes de gastar los 7 MB. Hay un botón para
+  cargarlo igualmente.
+- **Los ficheros llevan el hash del contenido en el nombre**, así que al publicar una
+  versión nueva nadie se queda con la anterior en la caché.
+
 Para probarla en local antes de publicar:
 
 ```bash

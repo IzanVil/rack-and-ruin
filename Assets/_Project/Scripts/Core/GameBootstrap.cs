@@ -18,6 +18,21 @@ namespace ServerGame.Core
         [Tooltip("Crea una cámara si la escena no tiene ninguna, para evitar el aviso de Unity.")]
         [SerializeField] bool createCameraIfMissing = true;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        static extern void SgWatchPageVisibility();
+
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        static extern int SgConsumePageWasHidden();
+#endif
+
+        // Techo del tiempo real que se simula en un frame. GameSession.Tick trocea el delta
+        // en pasos de 50 ms, pero topa en 16 pasos: pasados 0,8 s de tiempo simulado los
+        // pasos empiezan a crecer y la térmica se integra con una resolución mucho peor que
+        // la de diseño. Como la velocidad llega a x4, el techo en tiempo real es 0,8/4.
+        // Por debajo de 5 FPS el juego va a cámara lenta, que es preferible a integrar mal.
+        const float MaxFrameDelta = 0.2f;
+
         GameSession _session;
         GameUi _ui;
         Camera _camera;
@@ -41,6 +56,9 @@ namespace ServerGame.Core
         void Awake()
         {
             Application.targetFrameRate = 60;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            SgWatchPageVisibility();
+#endif
             if (createCameraIfMissing) EnsureCamera();
             StartNewRun();
         }
@@ -48,7 +66,12 @@ namespace ServerGame.Core
         void Update()
         {
             if (_session == null) return;
-            _session.Tick(Time.unscaledDeltaTime);
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // Se consulta antes del Tick: si la pestaña estuvo escondida, la pausa deja
+            // Speed a 0 y el Tick de este frame (el que trae el salto de tiempo) no simula.
+            if (SgConsumePageWasHidden() != 0) _session.PauseFromBackground();
+#endif
+            _session.Tick(Mathf.Min(Time.unscaledDeltaTime, MaxFrameDelta));
             _ui.Tick();
         }
 
