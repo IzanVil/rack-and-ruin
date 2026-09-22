@@ -8,10 +8,10 @@ namespace ServerGame.UI
     // Se construye una vez y se refresca leyendo el modelo; Refresh no instancia nada.
     public sealed class ServerCardView
     {
-        public const float Width = 224f;
-        public const float Height = 162f;
-
         public readonly RectTransform Root;
+
+        readonly float _width;
+        readonly bool _dense;
         public ServerUnit Unit { get; private set; }
 
         readonly Image _border;
@@ -31,9 +31,26 @@ namespace ServerGame.UI
         readonly Text _badges;
         readonly Bar _taskBar;
 
-        public ServerCardView(Transform parent, ServerUnit unit, System.Action<ServerUnit> onClick)
+        public ServerCardView(Transform parent, ServerUnit unit, System.Action<ServerUnit> onClick,
+            UiLayout layout)
         {
             Unit = unit;
+            _width = layout.CardSize.x;
+
+            bool compact = layout.Compact;
+            _dense = layout.DenseCards;
+
+            float nameY = _dense ? 6f : compact ? 7f : 9f;
+            float pillY = _dense ? 6f : compact ? 27f : 32f;
+            float row0 = _dense ? 28f : compact ? 48f : 55f;
+            float rowStep = _dense ? 20f : compact ? 24f : 26f;
+            float badgesY = _dense ? 88f : compact ? 118f : 131f;
+            float taskY = _dense ? 100f : compact ? 136f : 150f;
+            int nameSize = _dense ? 14 : compact ? 15 : 16;
+            int tierSize = _dense ? 9 : compact ? 10 : 12;
+            int pillSize = _dense ? 9 : compact ? 10 : 11;
+            int badgeSize = _dense ? 9 : compact ? 10 : 11;
+            float pad = compact ? 10f : 12f;
 
             Root = Ui.NewRect("Card_" + unit.Name, parent);
 
@@ -48,45 +65,59 @@ namespace ServerGame.UI
             button.onClick.AddListener(() => onClick(Unit));
             _background.gameObject.AddComponent<PointerCursorHint>().Button = button;
 
-            _name = Ui.NewText("Name", Root, unit.Name, 16, UiTheme.TextPrimary,
+            _name = Ui.NewText("Name", Root, unit.Name, nameSize, UiTheme.TextPrimary,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
-            Ui.Place(_name.rectTransform, 12f, 9f, 110f, 20f);
+            Ui.Place(_name.rectTransform, pad, nameY, 110f, 20f);
 
-            _tier = Ui.NewText("Tier", Root, string.Empty, 12, UiTheme.Accent,
-                TextAnchor.MiddleRight, FontStyle.Bold);
-            Ui.Place(_tier.rectTransform, Width - 78f, 9f, 66f, 20f);
+            _tier = Ui.NewText("Tier", Root, string.Empty, tierSize, UiTheme.Accent,
+                TextAnchor.MiddleLeft, FontStyle.Bold);
+            if (_dense) Ui.Place(_tier.rectTransform, pad + 54f, nameY, 46f, 18f);
+            else Ui.Place(_tier.rectTransform, _width - 66f - pad, nameY, 66f, 20f);
+            if (!_dense) _tier.alignment = TextAnchor.MiddleRight;
 
             var pill = Ui.NewPanel("StatePill", Root, UiTheme.Ok, UiTheme.RadiusPill);
-            Ui.Place(pill.rectTransform, 12f, 32f, 108f, 17f);
+            Ui.Place(pill.rectTransform, _dense ? _width - 84f - pad : pad, pillY,
+                _dense ? 84f : compact ? 96f : 108f, _dense ? 15f : compact ? 16f : 17f);
             _statePillBg = pill;
-            _statePill = Ui.NewText("Text", pill.rectTransform, "EN LÍNEA", 11, UiTheme.Background,
+            _statePill = Ui.NewText("Text", pill.rectTransform, "EN LÍNEA", pillSize, UiTheme.Background,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
             Ui.Stretch(_statePill.rectTransform, 4f, 4f, 0f, 0f);
 
-            _loadValue = BuildRow(out _loadBar, "Load", "CARGA", 55f);
-            _tempValue = BuildRow(out _tempBar, "Temp", "TEMP", 81f);
-            _healthValue = BuildRow(out _healthBar, "Health", "SALUD", 107f);
+            _loadValue = BuildRow(out _loadBar, "Load", "CARGA", row0, pad, compact);
+            _tempValue = BuildRow(out _tempBar, "Temp", "TEMP", row0 + rowStep, pad, compact);
+            _healthValue = BuildRow(out _healthBar, "Health", "SALUD", row0 + rowStep * 2f, pad, compact);
 
-            _badges = Ui.NewText("Badges", Root, string.Empty, 11, UiTheme.TextMuted,
+            _badges = Ui.NewText("Badges", Root, string.Empty, badgeSize, UiTheme.TextMuted,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
-            Ui.Place(_badges.rectTransform, 12f, 131f, Width - 24f, 16f);
+            Ui.Place(_badges.rectTransform, pad, badgesY, _width - pad * 2f, 16f);
 
             _taskBar = Ui.NewBar("TaskBar", Root, UiTheme.Track, 2);
-            Ui.Place(_taskBar.Rect, 12f, 150f, Width - 24f, 4f);
+            Ui.Place(_taskBar.Rect, pad, taskY, _width - pad * 2f, 4f);
         }
 
-        Text BuildRow(out Bar bar, string id, string caption, float y)
+        Text BuildRow(out Bar bar, string id, string caption, float y, float pad, bool compact)
         {
-            var label = Ui.NewText(id + "Caption", Root, caption, 10, UiTheme.TextDim,
-                TextAnchor.MiddleLeft, FontStyle.Bold);
-            Ui.Place(label.rectTransform, 12f, y, 70f, 12f);
+            if (_dense)
+            {
+                var denseValue = Ui.NewText(id + "Value", Root, string.Empty, 11,
+                    UiTheme.TextPrimary, TextAnchor.MiddleLeft, FontStyle.Bold);
+                Ui.Place(denseValue.rectTransform, pad, y, 84f, 14f);
 
-            var value = Ui.NewText(id + "Value", Root, string.Empty, 12, UiTheme.TextPrimary,
-                TextAnchor.MiddleRight, FontStyle.Bold);
-            Ui.Place(value.rectTransform, Width - 100f, y - 1f, 88f, 14f);
+                bar = Ui.NewBar(id + "Bar", Root, UiTheme.Track, 3);
+                Ui.Place(bar.Rect, pad + 88f, y + 5f, _width - pad * 2f - 88f, 5f);
+                return denseValue;
+            }
+
+            var label = Ui.NewText(id + "Caption", Root, caption, compact ? 9 : 10, UiTheme.TextDim,
+                TextAnchor.MiddleLeft, FontStyle.Bold);
+            Ui.Place(label.rectTransform, pad, y, 70f, 12f);
+
+            var value = Ui.NewText(id + "Value", Root, string.Empty, compact ? 11 : 12,
+                UiTheme.TextPrimary, TextAnchor.MiddleRight, FontStyle.Bold);
+            Ui.Place(value.rectTransform, _width - 88f - pad, y - 1f, 88f, 14f);
 
             bar = Ui.NewBar(id + "Bar", Root, UiTheme.Track, 3);
-            Ui.Place(bar.Rect, 12f, y + 14f, Width - 24f, 6f);
+            Ui.Place(bar.Rect, pad, y + (compact ? 12f : 14f), _width - pad * 2f, compact ? 5f : 6f);
             return value;
         }
 

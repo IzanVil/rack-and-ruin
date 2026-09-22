@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>{{{ PRODUCT_NAME }}}</title>
   <meta name="description" content="Un rack. Un técnico. Toda la noche. Simulador de mantenimiento de un centro de datos.">
   <link rel="icon" type="image/png" href="TemplateData/icon.png">
@@ -34,6 +34,7 @@
       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
       display:flex;flex-direction:column;align-items:center;justify-content:center;
       min-height:100dvh;gap:18px;padding:16px;overflow:hidden;
+      overscroll-behavior:none;
     }
     header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;text-align:center}
     header img{width:44px;height:44px;border-radius:10px}
@@ -48,7 +49,7 @@
       border:1px solid var(--line);border-radius:14px;overflow:hidden;
       background:var(--panel);box-shadow:0 24px 70px rgba(0,0,0,.55);
     }
-    #unity-canvas{width:100%;height:100%;display:block;background:var(--bg)}
+    #unity-canvas{width:100%;height:100%;display:block;background:var(--bg);touch-action:none}
 
     /* Carga */
     #loader{
@@ -74,24 +75,21 @@
     button#full:hover{border-color:var(--accent);color:var(--accent)}
     #err{display:none;max-width:560px;text-align:center;color:var(--danger);font-size:14px;line-height:1.5}
 
-    /* Aviso de pantalla pequeña. Vive fuera de #frame porque en un móvil el encuadre
-       16:9 mide unos 350 px de ancho y el texto no cabría dentro. Cuando se muestra,
-       el body deja de centrar a la fuerza y permite hacer scroll. */
-    body.gated{display:block;overflow:auto;padding:24px 16px}
-    body.gated header{margin:0 auto 24px}
-    #gate,noscript .nojs{
-      display:none;max-width:560px;margin:0 auto;padding:24px;
+    noscript .nojs{
+      display:block;max-width:560px;margin:24px auto 0;padding:24px;
       border:1px solid var(--line);border-radius:14px;background:var(--panel);
       text-align:center;line-height:1.6;font-size:14px;color:var(--muted);
     }
-    body.gated #gate{display:block}
-    body.gated #frame,body.gated footer{display:none}
-    noscript .nojs{display:block;margin-top:24px}
-    #gate h2{font-size:16px;color:var(--text);margin-bottom:12px;letter-spacing:.5px}
-    #gate .why{font-size:13px;color:var(--dim);margin-top:12px}
-    #gate button{
-      margin-top:20px;background:var(--accent);border:0;color:#06202B;
-      border-radius:8px;padding:11px 18px;font-size:14px;font-weight:800;cursor:pointer;
+
+    @media (max-width:820px), (orientation:portrait){
+      body{padding:0;gap:0}
+      header,footer{display:none}
+      #frame{
+        width:100%;height:100dvh;max-width:none;aspect-ratio:auto;
+        border:0;border-radius:0;box-shadow:none;
+        padding:env(safe-area-inset-top) env(safe-area-inset-right)
+                env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
     }
   </style>
 </head>
@@ -112,20 +110,7 @@
     <div id="err"></div>
   </div>
 
-  <div id="gate">
-    <h2>Esto pide una pantalla más ancha</h2>
-    <p>La interfaz del juego está diseñada a 1600×900 y aquí se vería tan reducida que
-    los números del rack no se leen. Si estás en un móvil, gíralo; en una ventana pequeña,
-    agrándala.</p>
-    <p class="why">No hemos empezado la descarga (son unos 7 MB) para no gastártelos en
-    balde. Puedes cargarlo igualmente si quieres echarle un ojo.</p>
-    <button id="gate-load">Cargar de todos modos</button>
-  </div>
-
   <noscript>
-    <!-- Sin JavaScript el encuadre 16:9 se queda vacío ocupando toda la altura y el
-         aviso caería fuera del overflow:hidden del body. Se reutiliza el mismo
-         replanteo que usa la puerta de pantalla pequeña. -->
     <style>#frame,footer{display:none}body{display:block;overflow:auto;padding:24px 16px}</style>
     <div class="nojs">
       <b>UPTIME</b> es un juego de Unity y necesita JavaScript y WebGL para ejecutarse.
@@ -150,16 +135,22 @@
     var pct = document.getElementById("pct");
     var err = document.getElementById("err");
 
+    var AnchoCompacto = 820;
+
     // Supersampling: el búfer de render se genera por encima del tamaño mostrado
     // (2x-3x los píxeles CSS) y el navegador lo reduce. Así el texto de Unity queda
     // nítido aunque la pantalla tenga devicePixelRatio = 1, que es donde uGUI con
     // fuente dinámica se veía blando. Para esta UI ligera el coste de GPU es trivial;
     // el tope de 3x evita excesos en pantallas 4K.
     function ajustarNitidez(){
-      var dpr = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3);
       var rect = canvas.getBoundingClientRect();
+      var nativo = window.devicePixelRatio || 1;
+      var dpr = rect.width < AnchoCompacto
+        ? Math.min(nativo, 2)
+        : Math.min(Math.max(nativo, 2), 3);
       var w = Math.round(rect.width * dpr);
       var h = Math.round(rect.height * dpr);
+      if (w < 1 || h < 1) return;
       if (canvas.width !== w || canvas.height !== h){
         canvas.width = w;
         canvas.height = h;
@@ -209,21 +200,7 @@
       });
     }
 
-    // Por debajo de este ancho de encuadre, el texto más pequeño de la interfaz (10 px
-    // sobre una referencia de 1600) baja de 5 px reales y deja de leerse. En vez de
-    // gastarle 7 MB de descarga a un móvil para que descubra que no puede jugar, se
-    // avisa antes y se le deja decidir.
-    var AnchoMinimoFrame = 720;
-
-    if (document.getElementById("frame").getBoundingClientRect().width < AnchoMinimoFrame){
-      document.body.classList.add("gated");
-      document.getElementById("gate-load").onclick = function(){
-        document.body.classList.remove("gated");
-        arrancar();
-      };
-    } else {
-      arrancar();
-    }
+    arrancar();
   </script>
 </body>
 </html>

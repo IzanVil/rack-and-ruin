@@ -11,13 +11,14 @@ namespace ServerGame.UI
         const int ActionCount = 7;
 
         readonly GameSession _session;
-        readonly Text _title;
-        readonly Image _statePillBg;
-        readonly Text _statePill;
-        readonly StatRow[] _stats;
+        readonly UiLayout _layout;
+        Text _title;
+        Image _statePillBg;
+        Text _statePill;
+        StatRow[] _stats;
+        Text _footer;
         readonly UiButton[] _actions = new UiButton[ActionCount];
         readonly ServerActionId[] _actionIds = new ServerActionId[ActionCount];
-        readonly Text _footer;
 
         sealed class StatRow
         {
@@ -25,46 +26,54 @@ namespace ServerGame.UI
             public Text Value;
         }
 
-        public InspectorView(Transform parent, GameSession session)
+        public InspectorView(Transform parent, GameSession session, UiLayout layout,
+            bool ownPanel = true)
         {
             _session = session;
+            _layout = layout;
 
-            var panel = Ui.NewPanel("Inspector", parent, UiTheme.Panel, UiTheme.RadiusPanel);
-            Ui.Stretch(panel.rectTransform);
+            bool compact = layout.Compact;
+            float pad = compact ? 14f : 16f;
+            float statRowHeight = compact ? 21f : 19f;
 
-            var content = Ui.NewRect("Content", panel.rectTransform);
-            Ui.Stretch(content, 16f, 16f, 16f, 14f);
-            Ui.VBox(content, 8f);
+            Transform host = parent;
+            if (ownPanel)
+            {
+                var panel = Ui.NewPanel("Inspector", parent, UiTheme.Panel, UiTheme.RadiusPanel);
+                Ui.Stretch(panel.rectTransform);
+                host = panel.rectTransform;
+            }
 
-            _title = Ui.NewText("Title", content, "SRV-01", 21, UiTheme.TextPrimary,
+            float padBottom = compact ? 12f : 14f;
+            float spacing = compact ? 7f : 8f;
+
+            if (layout.InspectorTwoColumn)
+            {
+                BuildTwoColumn(host, layout, pad, padBottom, statRowHeight);
+                return;
+            }
+
+            var content = Ui.NewRect("Content", host);
+            Ui.Stretch(content, pad, pad, pad, padBottom);
+            Ui.VBox(content, spacing);
+
+            _title = Ui.NewText("Title", content, "SRV-01", compact ? 19 : 21, UiTheme.TextPrimary,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
             Ui.Fixed(_title, height: 26f);
 
             var pillHolder = Ui.NewRect("PillHolder", content);
             Ui.Fixed(pillHolder, height: 19f);
-            _statePillBg = Ui.NewPanel("Pill", pillHolder, UiTheme.Ok, UiTheme.RadiusPill);
-            var pillRect = _statePillBg.rectTransform;
-            pillRect.anchorMin = new Vector2(0f, 0f);
-            pillRect.anchorMax = new Vector2(0f, 1f);
-            pillRect.pivot = new Vector2(0f, 0.5f);
-            pillRect.offsetMin = new Vector2(0f, 0f);
-            pillRect.offsetMax = new Vector2(130f, 0f);
-            _statePill = Ui.NewText("Text", pillRect, "EN LÍNEA", 11, UiTheme.Background,
-                TextAnchor.MiddleCenter, FontStyle.Bold);
-            Ui.Stretch(_statePill.rectTransform, 6f, 6f, 0f, 0f);
+            BuildPill(pillHolder);
 
             Ui.Divider(content, UiTheme.Line);
 
             var statsBox = Ui.NewRect("Stats", content);
             Ui.VBox(statsBox, 3f);
-            string[] captions =
-            {
-                "Capacidad efectiva", "Carga actual", "Temperatura", "Salud del hardware",
-                "Memoria filtrada", "Deuda de parches", "Tiempo sin reiniciar"
-            };
-            _stats = new StatRow[captions.Length];
-            for (int i = 0; i < captions.Length; i++) _stats[i] = BuildStatRow(statsBox, captions[i]);
-            Ui.Fixed(statsBox, height: captions.Length * 19f + (captions.Length - 1) * 3f);
+            _stats = new StatRow[StatCaptions.Length];
+            for (int i = 0; i < StatCaptions.Length; i++)
+                _stats[i] = BuildStatRow(statsBox, StatCaptions[i], statRowHeight, compact);
+            Ui.Fixed(statsBox, height: StatCaptions.Length * statRowHeight +
+                                       (StatCaptions.Length - 1) * 3f);
 
             Ui.Divider(content, UiTheme.Line);
 
@@ -74,31 +83,99 @@ namespace ServerGame.UI
 
             var actionsBox = Ui.NewRect("Actions", content);
             Ui.VBox(actionsBox, 5f);
-            for (int i = 0; i < ActionCount; i++)
-            {
-                var button = Ui.NewButton("Action" + i, actionsBox, "—", UiTheme.PanelRaised,
-                    UiTheme.TextPrimary, 14, UiTheme.RadiusSmall, withSubLabel: true);
-                Ui.Fixed(button.Rect, height: 42f);
-                int index = i;
-                button.OnClick(() => _session.Execute(_actionIds[index], _session.Selected));
-                _actions[i] = button;
-            }
-            Ui.Fixed(actionsBox, height: ActionCount * 42f + (ActionCount - 1) * 5f);
+            for (int i = 0; i < ActionCount; i++) BuildAction(actionsBox, i, layout.ActionHeight);
+            Ui.Fixed(actionsBox, height: ActionCount * layout.ActionHeight + (ActionCount - 1) * 5f);
 
             _footer = Ui.NewText("Footer", content, string.Empty, 11, UiTheme.TextDim,
                 TextAnchor.UpperLeft, FontStyle.Normal, wrap: true);
             Ui.Fixed(_footer, height: 30f);
+            if (compact) _footer.gameObject.SetActive(false);
         }
 
-        StatRow BuildStatRow(Transform parent, string caption)
+        void BuildTwoColumn(Transform host, UiLayout layout, float pad, float padBottom,
+            float statRowHeight)
+        {
+            const float HeaderHeight = 26f;
+            const float ColumnGap = 16f;
+            float statsWidth = 380f;
+
+            var content = Ui.NewRect("Content", host);
+            Ui.Stretch(content, pad, pad, pad, padBottom);
+
+            _title = Ui.NewText("Title", content, "SRV-01", 19, UiTheme.TextPrimary,
+                TextAnchor.MiddleLeft, FontStyle.Bold);
+            Ui.Place(_title.rectTransform, 0f, 0f, 200f, HeaderHeight);
+
+            var pillHolder = Ui.NewRect("PillHolder", content);
+            Ui.Place(pillHolder, 210f, 4f, 200f, 19f);
+            BuildPill(pillHolder);
+
+            var body = Ui.NewRect("Body", content);
+            Ui.Stretch(body, 0f, 0f, HeaderHeight + 8f, 0f);
+
+            var statsBox = Ui.NewRect("Stats", body);
+            Ui.Left(statsBox, statsWidth);
+            Ui.VBox(statsBox, 3f);
+            _stats = new StatRow[StatCaptions.Length];
+            for (int i = 0; i < StatCaptions.Length; i++)
+                _stats[i] = BuildStatRow(statsBox, StatCaptions[i], statRowHeight, true);
+
+            var actionsBox = Ui.NewRect("Actions", body);
+            Ui.Stretch(actionsBox, statsWidth + ColumnGap, 0f, 0f, 0f);
+            var grid = actionsBox.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(202f, layout.ActionHeight);
+            grid.spacing = new Vector2(6f, 5f);
+            grid.startCorner = GridLayoutGroup.Corner.UpperLeft;
+            grid.startAxis = GridLayoutGroup.Axis.Horizontal;
+            grid.childAlignment = TextAnchor.UpperLeft;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 2;
+            for (int i = 0; i < ActionCount; i++) BuildAction(actionsBox, i, layout.ActionHeight);
+
+            _footer = Ui.NewText("Footer", content, string.Empty, 11, UiTheme.TextDim,
+                TextAnchor.UpperLeft, FontStyle.Normal, wrap: true);
+            Ui.Place(_footer.rectTransform, 0f, 0f, 10f, 10f);
+            _footer.gameObject.SetActive(false);
+        }
+
+        void BuildPill(RectTransform holder)
+        {
+            _statePillBg = Ui.NewPanel("Pill", holder, UiTheme.Ok, UiTheme.RadiusPill);
+            var pillRect = _statePillBg.rectTransform;
+            pillRect.anchorMin = new Vector2(0f, 0f);
+            pillRect.anchorMax = new Vector2(0f, 1f);
+            pillRect.pivot = new Vector2(0f, 0.5f);
+            pillRect.offsetMin = new Vector2(0f, 0f);
+            pillRect.offsetMax = new Vector2(130f, 0f);
+            _statePill = Ui.NewText("Text", pillRect, "EN LÍNEA", 11, UiTheme.Background,
+                TextAnchor.MiddleCenter, FontStyle.Bold);
+            Ui.Stretch(_statePill.rectTransform, 6f, 6f, 0f, 0f);
+        }
+
+        void BuildAction(Transform parent, int index, float height)
+        {
+            var button = Ui.NewButton("Action" + index, parent, "—", UiTheme.PanelRaised,
+                UiTheme.TextPrimary, 14, UiTheme.RadiusSmall, withSubLabel: true);
+            Ui.Fixed(button.Rect, height: height);
+            button.OnClick(() => _session.Execute(_actionIds[index], _session.Selected));
+            _actions[index] = button;
+        }
+
+        static readonly string[] StatCaptions =
+        {
+            "Capacidad efectiva", "Carga actual", "Temperatura", "Salud del hardware",
+            "Memoria filtrada", "Deuda de parches", "Tiempo sin reiniciar"
+        };
+
+        StatRow BuildStatRow(Transform parent, string caption, float height, bool compact)
         {
             var row = Ui.NewRect("Row_" + caption, parent);
-            Ui.Fixed(row, height: 19f);
+            Ui.Fixed(row, height: height);
 
-            var label = Ui.NewText("Label", row, caption, 12, UiTheme.TextMuted);
-            Ui.Stretch(label.rectTransform, 0f, 110f, 0f, 0f);
+            var label = Ui.NewText("Label", row, caption, compact ? 13 : 12, UiTheme.TextMuted);
+            Ui.Stretch(label.rectTransform, 0f, compact ? 130f : 110f, 0f, 0f);
 
-            var value = Ui.NewText("Value", row, "—", 13, UiTheme.TextPrimary,
+            var value = Ui.NewText("Value", row, "—", compact ? 14 : 13, UiTheme.TextPrimary,
                 TextAnchor.MiddleRight, FontStyle.Bold);
             Ui.Stretch(value.rectTransform, 0f, 0f, 0f, 0f);
 
@@ -161,7 +238,7 @@ namespace ServerGame.UI
                 var info = actions[i];
                 _actionIds[i] = info.Id;
                 button.Rect.gameObject.SetActive(true);
-                button.Label.text = info.Label + HotkeyFor(info.Id);
+                button.Label.text = _layout.Compact ? info.Label : info.Label + HotkeyFor(info.Id);
                 button.SubLabel.text = info.Enabled ? CostLine(info) : info.DisabledReason;
                 button.SubLabel.color = info.Enabled ? UiTheme.TextMuted : UiTheme.TextDim;
                 button.Label.color = info.Enabled ? UiTheme.TextPrimary : UiTheme.TextDim;
@@ -171,7 +248,7 @@ namespace ServerGame.UI
 
             _footer.text = unit.NeedsAttention(cfg)
                 ? "<color=#" + ColorUtility.ToHtmlStringRGB(UiTheme.Warn) + ">Esta máquina necesita atención.</color>"
-                : "Tab salta al siguiente servidor con problemas.";
+                : _layout.Compact ? string.Empty : "Tab salta al siguiente servidor con problemas.";
         }
 
         static string CostLine(ServerActionInfo info)

@@ -27,10 +27,10 @@ namespace ServerGame.Core
     public sealed class IncidentSystem
     {
         readonly List<ActiveEffect> _active = new List<ActiveEffect>();
-        readonly System.Random _rng;
+        readonly Rng _rng;
         float _nextIn;
 
-        public IncidentSystem(System.Random rng)
+        public IncidentSystem(Rng rng)
         {
             _rng = rng;
         }
@@ -228,6 +228,45 @@ namespace ServerGame.Core
             }
 
             session.Bus.RaiseChanged();
+        }
+
+        public void Capture(SaveData data)
+        {
+            data.incidentNextIn = _nextIn;
+            data.incidentEffects = new SavedEffect[_active.Count];
+            for (int i = 0; i < _active.Count; i++)
+            {
+                var effect = _active[i];
+                data.incidentEffects[i] = new SavedEffect
+                {
+                    id = (int)effect.Id,
+                    label = effect.Label,
+                    remaining = effect.Remaining,
+                    demandMultiplier = effect.DemandMultiplier,
+                    coolingMultiplier = effect.CoolingMultiplier
+                };
+            }
+        }
+
+        public void Apply(SaveData data)
+        {
+            _active.Clear();
+            _nextIn = Mathf.Max(0f, data.incidentNextIn);
+
+            if (data.incidentEffects == null) return;
+            for (int i = 0; i < data.incidentEffects.Length; i++)
+            {
+                var saved = data.incidentEffects[i];
+                if (saved == null || saved.remaining <= 0f) continue;
+                _active.Add(new ActiveEffect
+                {
+                    Id = (IncidentId)saved.id,
+                    Label = saved.label,
+                    Remaining = saved.remaining,
+                    DemandMultiplier = saved.demandMultiplier,
+                    CoolingMultiplier = saved.coolingMultiplier
+                });
+            }
         }
 
         void Push(ActiveEffect effect)

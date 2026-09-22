@@ -16,8 +16,31 @@ namespace ServerGame.EditorTools
     ///         -screenshotOutput /ruta/capturas</summary>
     public static class ScreenshotTool
     {
-        const int Width = 1600;
-        const int Height = 900;
+        ///
+        readonly struct Shot
+        {
+            public readonly UiLayout Layout;
+            public readonly Vector2 Units;
+            public readonly int PixelWidth;
+            public readonly int PixelHeight;
+            public readonly string Prefix;
+
+            public Shot(UiLayout layout, Vector2 units, int pixelWidth, int pixelHeight, string prefix)
+            {
+                Layout = layout;
+                Units = units;
+                PixelWidth = pixelWidth;
+                PixelHeight = pixelHeight;
+                Prefix = prefix;
+            }
+        }
+
+        static readonly Shot[] Shots =
+        {
+            new Shot(UiLayout.Wide, new Vector2(1600f, 900f), 1600, 900, string.Empty),
+            new Shot(UiLayout.CompactLayout, new Vector2(420f, 908f), 390, 844, "movil-"),
+            new Shot(UiLayout.LandscapeLayout, new Vector2(844f, 390f), 844, 390, "tumbado-")
+        };
 
         [MenuItem("Server Game/Capturar pantallas", false, 80)]
         public static void CaptureFromMenu()
@@ -38,6 +61,15 @@ namespace ServerGame.EditorTools
         {
             Directory.CreateDirectory(folder);
 
+            for (int i = 0; i < Shots.Length; i++)
+                if (!CaptureShot(folder, Shots[i])) return false;
+
+            Debug.Log("Capturas guardadas en " + Path.GetFullPath(folder));
+            return true;
+        }
+
+        static bool CaptureShot(string folder, Shot shot)
+        {
             GameConfig cfg = null;
             GameObject host = null;
             GameObject cameraGo = null;
@@ -50,13 +82,12 @@ namespace ServerGame.EditorTools
                 var session = new GameSession(cfg, 20260828);
 
                 host = new GameObject("ScreenshotHost");
-                ui = new GameUi(session, host.transform);
+                ui = new GameUi(session, host.transform, shot.Layout);
 
-                // lienzo en espacio de mundo al tamaño de referencia exacto
                 var canvas = ui.Canvas;
                 canvas.renderMode = RenderMode.WorldSpace;
                 var canvasRect = (RectTransform)canvas.transform;
-                canvasRect.sizeDelta = new Vector2(Width, Height);
+                canvasRect.sizeDelta = shot.Units;
                 canvasRect.position = Vector3.zero;
                 canvasRect.localScale = Vector3.one;
 
@@ -68,37 +99,54 @@ namespace ServerGame.EditorTools
                 var camera = cameraGo.AddComponent<Camera>();
                 camera.transform.position = new Vector3(0f, 0f, -10f);
                 camera.orthographic = true;
-                camera.orthographicSize = Height * 0.5f;
-                camera.aspect = Width / (float)Height;
+                camera.orthographicSize = shot.Units.y * 0.5f;
+                camera.aspect = shot.Units.x / shot.Units.y;
                 camera.clearFlags = CameraClearFlags.SolidColor;
                 camera.backgroundColor = UiTheme.Background;
                 camera.nearClipPlane = 0.1f;
                 camera.farClipPlane = 100f;
                 canvas.worldCamera = camera;
 
-                rt = new RenderTexture(Width, Height, 24, RenderTextureFormat.ARGB32) { antiAliasing = 1 };
+                rt = new RenderTexture(shot.PixelWidth, shot.PixelHeight, 24,
+                    RenderTextureFormat.ARGB32) { antiAliasing = 1 };
                 camera.targetTexture = rt;
 
+                ui.ShowIntro(OverlayView.NewRunIntro(session.Seed, RunMode.Daily,
+                    session.BeginRun, null, null));
                 ui.Tick();
-                Render(camera, rt, Path.Combine(folder, "01-intro.png"));
+                Render(camera, rt, shot, Path.Combine(folder, shot.Prefix + "01-intro.png"));
 
                 ui.SkipIntro();
                 BuildInterestingState(session, cfg);
                 ui.Tick();
-                Render(camera, rt, Path.Combine(folder, "02-partida.png"));
+                Render(camera, rt, shot, Path.Combine(folder, shot.Prefix + "02-partida.png"));
+
+                if (shot.Layout.Compact)
+                {
+                    ui.OpenSheetForCapture();
+                    ui.Tick();
+                    Render(camera, rt, shot, Path.Combine(folder, shot.Prefix + "02b-detalle.png"));
+                    ui.CloseSheet();
+                }
 
                 ui.OpenUpgradesForCapture();
                 ui.Tick();
-                Render(camera, rt, Path.Combine(folder, "03-mejoras.png"));
+                Render(camera, rt, shot, Path.Combine(folder, shot.Prefix + "03-mejoras.png"));
                 ui.CloseUpgradesForCapture();
 
                 // Se deja correr hasta el cierre del turno para capturar el resumen.
                 for (int i = 0; i < 40000 && session.Phase == SessionPhase.Playing; i++)
                     session.Tick(0.05f);
                 ui.Tick();
-                Render(camera, rt, Path.Combine(folder, "04-resumen.png"));
+                Render(camera, rt, shot, Path.Combine(folder, shot.Prefix + "04-resumen.png"));
 
-                Debug.Log("Capturas guardadas en " + Path.GetFullPath(folder));
+                session.StartNextDay();
+                for (int i = 0; i < session.Rack.Count; i++) session.Rack[i].Fail();
+                session.Spend(session.Money, "captura de pantalla");
+                session.Tick(0.05f);
+                ui.Tick();
+                Render(camera, rt, shot, Path.Combine(folder, shot.Prefix + "05-fin.png"));
+
                 return true;
             }
             catch (Exception e)
@@ -152,7 +200,7 @@ namespace ServerGame.EditorTools
             session.Select(session.Rack[1]);
         }
 
-        static void Render(Camera camera, RenderTexture rt, string path)
+        static void Render(Camera camera, RenderTexture rt, Shot shot, string path)
         {
             Canvas.ForceUpdateCanvases();
             camera.Render();
@@ -160,8 +208,8 @@ namespace ServerGame.EditorTools
             var previous = RenderTexture.active;
             RenderTexture.active = rt;
 
-            var texture = new Texture2D(Width, Height, TextureFormat.RGB24, false);
-            texture.ReadPixels(new Rect(0, 0, Width, Height), 0, 0);
+            var texture = new Texture2D(shot.PixelWidth, shot.PixelHeight, TextureFormat.RGB24, false);
+            texture.ReadPixels(new Rect(0, 0, shot.PixelWidth, shot.PixelHeight), 0, 0);
             texture.Apply();
             File.WriteAllBytes(path, texture.EncodeToPNG());
 

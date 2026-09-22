@@ -8,43 +8,57 @@ namespace ServerGame.UI
 {
     public sealed class HudView
     {
-        public const float BarHeight = 76f;
-        public const float StripHeight = 26f;
-        public const float TotalHeight = BarHeight + StripHeight + 6f;
-
         readonly GameSession _session;
+        readonly UiLayout _layout;
         readonly StringBuilder _sb = new StringBuilder(160);
 
-        readonly Text _dayValue;
-        readonly Text _moneyValue;
-        readonly Text _reputationValue;
-        readonly Bar _reputationBar;
-        readonly Text _demandValue;
-        readonly Text _demandDetail;
-        readonly Text _slaValue;
-        readonly Bar _slaBar;
-        readonly Text _clockValue;
-        readonly Bar _clockBar;
+        Text _dayValue;
+        Text _moneyValue;
+        Text _reputationValue;
+        Bar _reputationBar;
+        Text _demandValue;
+        Text _demandDetail;
+        Text _slaValue;
+        Bar _slaBar;
+        Text _clockValue;
+        Bar _clockBar;
 
-        readonly UiButton[] _speedButtons;
+        UiButton[] _speedButtons;
         readonly float[] _speedValues = { 0f, 1f, 2f, 4f };
 
         readonly Image _stripBg;
         readonly Text _stripText;
 
-        public UiButton UpgradesButton { get; }
+        public UiButton UpgradesButton { get; private set; }
 #if !UNITY_WEBGL
-        public UiButton ExitButton { get; }
+        public UiButton ExitButton { get; private set; }
 #endif
 
-        public HudView(Transform parent, GameSession session)
+        public HudView(Transform parent, GameSession session, UiLayout layout, Transform controlsParent)
         {
             _session = session;
+            _layout = layout;
 
             var panel = Ui.NewPanel("Hud", parent, UiTheme.Panel, UiTheme.RadiusPanel);
-            Ui.Top(panel.rectTransform, BarHeight);
+            Ui.Top(panel.rectTransform, layout.HudBarHeight);
             var root = panel.rectTransform;
 
+            if (layout.Landscape) BuildLandscapeBlocks(root);
+            else if (layout.Compact) BuildCompactBlocks(root);
+            else BuildWideBlocks(root);
+
+            BuildControls(root, controlsParent);
+
+            _stripBg = Ui.NewPanel("Strip", parent, UiTheme.PanelDeep, UiTheme.RadiusSmall);
+            Ui.Top(_stripBg.rectTransform, layout.HudStripHeight, layout.HudBarHeight + 6f);
+            _stripText = Ui.NewText("StripText", _stripBg.rectTransform, string.Empty,
+                layout.Compact ? 11 : 12, UiTheme.TextMuted, TextAnchor.MiddleLeft, FontStyle.Bold);
+            Ui.Stretch(_stripText.rectTransform, layout.Compact ? 10f : 14f,
+                layout.Compact ? 10f : 14f, 0f, 0f);
+        }
+
+        void BuildWideBlocks(RectTransform root)
+        {
             var title = Ui.NewText("Title", root, "UPTIME", 22, UiTheme.Accent,
                 TextAnchor.LowerLeft, FontStyle.Bold);
             Ui.Place(title.rectTransform, 20f, 14f, 200f, 26f);
@@ -53,46 +67,102 @@ namespace ServerGame.UI
                 TextAnchor.UpperLeft, FontStyle.Bold);
             Ui.Place(subtitle.rectTransform, 21f, 42f, 200f, 14f);
 
-            _dayValue = Block(root, 150f, "TURNO", 120f, out _);
-            _moneyValue = Block(root, 270f, "CAJA", 150f, out _);
+            _dayValue = Block(root, 150f, 14f, "TURNO", 120f, 20, out _);
+            _moneyValue = Block(root, 270f, 14f, "CAJA", 150f, 20, out _);
             _moneyValue.color = UiTheme.Money;
-            _reputationValue = Block(root, 420f, "REPUTACIÓN", 150f, out _reputationBar, true);
-            _demandValue = Block(root, 570f, "DEMANDA", 165f, out _);
+            _reputationValue = Block(root, 420f, 14f, "REPUTACIÓN", 150f, 20, out _reputationBar, true);
+            _demandValue = Block(root, 570f, 14f, "DEMANDA", 165f, 20, out _);
             _demandDetail = Ui.NewText("DemandDetail", root, string.Empty, 11, UiTheme.TextMuted);
             Ui.Place(_demandDetail.rectTransform, 570f, 52f, 200f, 14f);
-            _slaValue = Block(root, 760f, "SLA DEL TURNO", 150f, out _slaBar, true);
-            _clockValue = Block(root, 910f, "TIEMPO RESTANTE", 150f, out _clockBar, true);
+            _slaValue = Block(root, 760f, 14f, "SLA DEL TURNO", 150f, 20, out _slaBar, true);
+            _clockValue = Block(root, 910f, 14f, "TIEMPO RESTANTE", 150f, 20, out _clockBar, true);
+        }
 
+        void BuildCompactBlocks(RectTransform root)
+        {
+            const float RowA = 6f;
+            const float RowB = 52f;
+            const float BarOffset = 39f;
+
+            _dayValue = Block(root, 12f, RowA, "TURNO", 52f, 17, out _, false, BarOffset);
+            _moneyValue = Block(root, 68f, RowA, "CAJA", 116f, 17, out _, false, BarOffset);
+            _moneyValue.color = UiTheme.Money;
+            _reputationValue = Block(root, 188f, RowA, "REPUT.", 98f, 17, out _reputationBar, true, BarOffset);
+            _slaValue = Block(root, 292f, RowA, "SLA", 100f, 17, out _slaBar, true, BarOffset);
+
+            _demandValue = Block(root, 12f, RowB, "DEMANDA", 130f, 17, out _, false, BarOffset);
+            _demandDetail = Ui.NewText("DemandDetail", root, string.Empty, 11, UiTheme.TextMuted);
+            Ui.Place(_demandDetail.rectTransform, 148f, RowB + 14f, 140f, 18f);
+            _clockValue = Block(root, 292f, RowB, "TIEMPO", 100f, 17, out _clockBar, true, BarOffset);
+        }
+
+        void BuildLandscapeBlocks(RectTransform root)
+        {
+            const float Row = 7f;
+            const float BarOffset = 38f;
+
+            _dayValue = Block(root, 12f, Row, "TURNO", 50f, 17, out _, false, BarOffset);
+            _moneyValue = Block(root, 66f, Row, "CAJA", 112f, 17, out _, false, BarOffset);
+            _moneyValue.color = UiTheme.Money;
+            _reputationValue = Block(root, 182f, Row, "REPUT.", 96f, 17, out _reputationBar, true, BarOffset);
+            _demandValue = Block(root, 282f, Row, "DEMANDA", 122f, 17, out _, false, BarOffset);
+            _demandDetail = Ui.NewText("DemandDetail", root, string.Empty, 11, UiTheme.TextMuted);
+            Ui.Place(_demandDetail.rectTransform, 408f, Row + 21f, 150f, 16f);
+            _slaValue = Block(root, 566f, Row, "SLA", 96f, 17, out _slaBar, true, BarOffset);
+            _clockValue = Block(root, 666f, Row, "TIEMPO", 96f, 17, out _clockBar, true, BarOffset);
+        }
+
+        void BuildControls(RectTransform hudRoot, Transform controlsParent)
+        {
             // La versión web se cierra desde la pestaña del navegador; Application.Quit()
             // no hace nada ahí, así que el botón de salir solo tiene sentido en la app nativa.
 #if !UNITY_WEBGL
-            const float ExitReserved = 88f; // 80 de ancho + 8 de separación con MEJORAS
+            float exitReserved = _layout.Compact ? 0f : 88f;
 #else
-            const float ExitReserved = 0f;
+            const float exitReserved = 0f;
 #endif
-            var controls = Ui.NewRect("Controls", root);
-            Ui.Right(controls, 400f + ExitReserved, 16f, 16f, 16f);
+            Transform controls;
+            if (controlsParent != null)
+            {
+                controls = controlsParent;
+            }
+            else
+            {
+                var holder = Ui.NewRect("Controls", hudRoot);
+                Ui.Right(holder, 400f + exitReserved, 16f, 16f, 16f);
+                controls = holder;
+            }
+
+            float buttonHeight = _layout.Landscape ? 34f : _layout.Compact ? 40f : 38f;
+            float speedWidth = _layout.Landscape ? 56f : _layout.Compact ? 62f : 52f;
+            float speedStep = speedWidth + (_layout.Compact ? 8f : 6f);
+            float upgradesWidth = _layout.Landscape ? 110f : _layout.Compact ? 118f : 150f;
 
 #if !UNITY_WEBGL
-            ExitButton = Ui.NewButton("Exit", controls, "SALIR",
-                UiTheme.PanelRaised, UiTheme.Danger, 13, UiTheme.RadiusSmall);
-            var exitRect = ExitButton.Rect;
-            exitRect.anchorMin = new Vector2(0f, 0.5f);
-            exitRect.anchorMax = new Vector2(0f, 0.5f);
-            exitRect.pivot = new Vector2(0f, 0.5f);
-            exitRect.anchoredPosition = new Vector2(0f, 0f);
-            exitRect.sizeDelta = new Vector2(80f, 38f);
-            ExitButton.OnClick(RequestExit);
+            if (!_layout.Compact)
+            {
+                ExitButton = Ui.NewButton("Exit", controls, "SALIR",
+                    UiTheme.PanelRaised, UiTheme.Danger, 13, UiTheme.RadiusSmall);
+                var exitRect = ExitButton.Rect;
+                exitRect.anchorMin = new Vector2(0f, 0.5f);
+                exitRect.anchorMax = new Vector2(0f, 0.5f);
+                exitRect.pivot = new Vector2(0f, 0.5f);
+                exitRect.anchoredPosition = Vector2.zero;
+                exitRect.sizeDelta = new Vector2(80f, 38f);
+                ExitButton.OnClick(RequestExit);
+            }
 #endif
 
-            UpgradesButton = Ui.NewButton("Upgrades", controls, "MEJORAS  [M]",
+            UpgradesButton = Ui.NewButton("Upgrades", controls,
+                _layout.Compact ? "MEJORAS" : "MEJORAS  [M]",
                 UiTheme.AccentDeep, UiTheme.TextPrimary, 14, UiTheme.RadiusSmall);
             var upRect = UpgradesButton.Rect;
-            upRect.anchorMin = new Vector2(0f, 0.5f);
-            upRect.anchorMax = new Vector2(0f, 0.5f);
-            upRect.pivot = new Vector2(0f, 0.5f);
-            upRect.anchoredPosition = new Vector2(ExitReserved, 0f);
-            upRect.sizeDelta = new Vector2(150f, 38f);
+            float upAnchorX = _layout.Compact ? 1f : 0f;
+            upRect.anchorMin = new Vector2(upAnchorX, 0.5f);
+            upRect.anchorMax = new Vector2(upAnchorX, 0.5f);
+            upRect.pivot = new Vector2(upAnchorX, 0.5f);
+            upRect.anchoredPosition = new Vector2(_layout.Compact ? 0f : exitReserved, 0f);
+            upRect.sizeDelta = new Vector2(upgradesWidth, buttonHeight);
 
             string[] labels = { "II", "1×", "2×", "4×" };
             _speedButtons = new UiButton[labels.Length];
@@ -101,43 +171,36 @@ namespace ServerGame.UI
                 var button = Ui.NewButton("Speed" + i, controls, labels[i],
                     UiTheme.PanelRaised, UiTheme.TextPrimary, 15, UiTheme.RadiusSmall);
                 var rect = button.Rect;
-                rect.anchorMin = new Vector2(1f, 0.5f);
-                rect.anchorMax = new Vector2(1f, 0.5f);
-                rect.pivot = new Vector2(1f, 0.5f);
-                rect.anchoredPosition = new Vector2(-(labels.Length - 1 - i) * 58f, 0f);
-                rect.sizeDelta = new Vector2(52f, 38f);
+                float anchorX = _layout.Compact ? 0f : 1f;
+                rect.anchorMin = new Vector2(anchorX, 0.5f);
+                rect.anchorMax = new Vector2(anchorX, 0.5f);
+                rect.pivot = new Vector2(anchorX, 0.5f);
+                rect.anchoredPosition = _layout.Compact
+                    ? new Vector2(i * speedStep, 0f)
+                    : new Vector2(-(labels.Length - 1 - i) * speedStep, 0f);
+                rect.sizeDelta = new Vector2(speedWidth, buttonHeight);
 
                 float speed = _speedValues[i];
-                button.OnClick(() =>
-                {
-                    if (speed <= 0f) _session.SetSpeed(0f);
-                    else _session.SetSpeed(speed);
-                });
+                button.OnClick(() => _session.SetSpeed(speed));
                 _speedButtons[i] = button;
             }
-
-            _stripBg = Ui.NewPanel("Strip", parent, UiTheme.PanelDeep, UiTheme.RadiusSmall);
-            Ui.Top(_stripBg.rectTransform, StripHeight, BarHeight + 6f);
-            _stripText = Ui.NewText("StripText", _stripBg.rectTransform, string.Empty, 12,
-                UiTheme.TextMuted, TextAnchor.MiddleLeft, FontStyle.Bold);
-            Ui.Stretch(_stripText.rectTransform, 14f, 14f, 0f, 0f);
         }
 
-        Text Block(RectTransform parent, float x, string caption, float width, out Bar bar,
-            bool withBar = false)
+        Text Block(RectTransform parent, float x, float y, string caption, float width,
+            int valueSize, out Bar bar, bool withBar = false, float barOffset = 41f)
         {
             var captionText = Ui.NewText(caption + "Caption", parent, caption, 10, UiTheme.TextDim,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
-            Ui.Place(captionText.rectTransform, x, 14f, width, 12f);
+            Ui.Place(captionText.rectTransform, x, y, width, 12f);
 
-            var value = Ui.NewText(caption + "Value", parent, "—", 20, UiTheme.TextPrimary,
+            var value = Ui.NewText(caption + "Value", parent, "—", valueSize, UiTheme.TextPrimary,
                 TextAnchor.MiddleLeft, FontStyle.Bold);
-            Ui.Place(value.rectTransform, x, 27f, width, 24f);
+            Ui.Place(value.rectTransform, x, y + 13f, width, 24f);
 
             if (withBar)
             {
                 bar = Ui.NewBar(caption + "Bar", parent, UiTheme.Track, 2);
-                Ui.Place(bar.Rect, x, 55f, width - 20f, 5f);
+                Ui.Place(bar.Rect, x, y + barOffset, width - 20f, 5f);
                 bar.Set(0f, UiTheme.Accent);
             }
             else

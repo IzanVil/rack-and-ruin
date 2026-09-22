@@ -8,7 +8,7 @@ Simulador de mantenimiento de un centro de datos en tiempo real.
 Tú contra la entropía, y la entropía tiene mejor uptime.
 
 ![Unity](https://img.shields.io/badge/Unity-6000.0.82f1-000000?style=flat-square&logo=unity&logoColor=white)
-![C#](https://img.shields.io/badge/C%23-4.640%20líneas-239120?style=flat-square&logo=csharp&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-6.901%20líneas-239120?style=flat-square&logo=csharp&logoColor=white)
 ![Assets binarios](https://img.shields.io/badge/assets%20binarios-0-38BDF8?style=flat-square)
 ![Prueba de humo](https://img.shields.io/badge/prueba%20de%20humo-0%20fallos-34D399?style=flat-square)
 ![Plataforma](https://img.shields.io/badge/Linux-x86__64-FBBF24?style=flat-square&logo=linux&logoColor=white)
@@ -78,15 +78,15 @@ La build **no se versiona en `main`**: se compila en local y se publica a una ra
 `gh-pages` que se reescribe entera en cada publicación. Así ni `main` ni `gh-pages` acumulan
 los ~7 MB de binarios de cada versión.
 
-Tres cosas que solo pasan en el navegador:
+Cuatro cosas que solo pasan en el navegador:
 
 - **Si cambias de pestaña, la partida se pausa sola.** El navegador deja de dar frames a las
   pestañas que no se ven, y al volver entregaría de golpe todo el tiempo transcurrido. Se
   pausa y se queda pausado, para que vuelvas a un rack que puedas mirar antes de que el
   reloj siga.
-- **En pantallas estrechas no se descarga nada.** Por debajo de 720 px de encuadre la
-  interfaz no se lee, así que la página lo dice antes de gastar los 7 MB. Hay un botón para
-  cargarlo igualmente.
+- **Si cierras la pestaña, la partida te espera.** Ver *[Cerrar la pestaña no cuesta la
+  partida](#cerrar-la-pestaña-no-cuesta-la-partida)*.
+- **En el móvil se juega igual.** Ver *[En un móvil](#en-un-móvil)*.
 - **Los ficheros llevan el hash del contenido en el nombre**, así que al publicar una
   versión nueva nadie se queda con la anterior en la caché.
 
@@ -114,6 +114,117 @@ puede saber qué código hay publicado. Si el árbol está sucio al publicar, av
 
 > **Puesta en marcha (una sola vez):** en el repo, **Settings → Pages → Source: Deploy from
 > a branch**, rama `gh-pages`, carpeta `/ (root)`.
+
+---
+
+## En un móvil
+
+Antes la página se negaba a cargar por debajo de 720 px: la interfaz estaba hecha a
+1600×900 y en un teléfono los números del rack no se leían. Ya no hay puerta, porque hay
+una segunda disposición.
+
+**No es la de escritorio encogida.** La referencia del lienzo pasa de 1600 a 420 unidades,
+que es el ancho de un móvil en píxeles CSS, así que un botón de 42 unidades mide 42 píxeles
+reales y se puede tocar. Encoger la otra dejaría el texto de 10 px en 2,4.
+
+Y tumbado tampoco vale la de vertical: allí falta ancho y sobra alto, y tumbado es justo al
+revés. Son **tres disposiciones**.
+
+| | Escritorio | Móvil en vertical | Móvil tumbado |
+|---|---|---|---|
+| **Referencia** | 1600 × 900 | 420 de ancho | 390 de alto |
+| **Rack** | 5 columnas | 2 columnas con scroll | 4 columnas, tarjeta baja |
+| **Inspector** | columna fija | hoja inferior | hoja inferior, con scroll |
+| **Velocidad y mejoras** | esquina del HUD | barra inferior | barra inferior |
+| **HUD** | una fila de seis | dos filas | una fila de seis |
+| **Consola** | 8 líneas | 3 líneas | 2 líneas |
+
+**La tarjeta baja** sube el estado a la línea del nombre y quita los rótulos
+CARGA/TEMP/SALUD, que se deducen del orden y del color. Cuesta un vistazo más y devuelve 42
+unidades de alto por tarjeta, que tumbado es una fila entera de rack.
+
+**Lo que no cabe, se recorre con el dedo.** Tumbado, el inspector pide casi 600 unidades y
+la pantalla da 390; la tienda son ocho mejoras y caben tres. Las listas largas llevan scroll
+solo en esa disposición: en las otras dos caben enteras y no hace falta.
+
+La decisión la toma `UiLayout.KindFor` a partir del tamaño de la ventana **en píxeles CSS**,
+que la página mide y le pasa al juego. No vale `Screen.width`: el lienzo se renderiza a 2x o
+3x para que el texto salga nítido, así que un teléfono de 390 px reporta más de 1.100 y
+cualquier umbral fallaría.
+
+```
+vertical (proporción < 1,2)          → compacta
+apaisada y ≥ 820 × 560               → escritorio
+apaisada por debajo de eso           → tumbada
+```
+
+Al girar el teléfono la interfaz **se reconstruye entera**, porque las dos disposiciones no
+son la misma a otra escala. La partida no se entera: sigue viva detrás, y lo que estuviera
+abierto —la portada, el resumen del turno, el fin de partida— se vuelve a montar.
+
+> **El único suelo está en 300 × 240 píxeles**, por debajo del cual no hay disposición que
+> aguante. No lo cruza ningún móvil —el más pequeño da 320 × 568, y tumbado 568 × 320—: es
+> la ventana de escritorio que alguien ha dejado en una rendija. Ahí se pausa y se avisa.
+
+Tres detalles que sin ellos no se juega bien con el dedo:
+
+- **El umbral de arrastre se escala con el lienzo.** uGUI separa el toque del arrastre en
+  píxeles de pantalla, pero el búfer va a 2x o 3x: sin corregirlo, un toque limpio se
+  pasaría de diez píxeles y el juego lo tomaría por scroll.
+- **`touch-action: none` en el lienzo.** El rack tiene scroll propio; si el navegador se
+  queda el arrastre para desplazar la página, se pelean.
+- **El supersampling se topa en 2x en móvil.** A pantalla completa con
+  `devicePixelRatio` 3 serían casi tres millones de píxeles por frame: se notan en la
+  batería y no se ven.
+
+---
+
+## El turno del día
+
+La simulación es determinista: una semilla fija la partida entera —qué incidencias caen,
+cuándo caen y sobre qué máquina—, así que dos personas con la misma semilla juegan el mismo
+rack y sus resultados se pueden comparar.
+
+Por defecto la semilla es **la fecha de hoy en UTC**, con formato `aaaammdd`. Todo el mundo
+que entre hoy se encuentra el mismo turno. En la portada está la alternativa: **partida
+libre**, con semilla al azar, para cuando lo que quieres es jugar y no competir.
+
+Al terminar, el botón **Copiar resultado** deja en el portapapeles algo así:
+
+```
+UPTIME · Turno de Noche
+Turno del día 21/09/2026
+7 turnos · 2,4M peticiones · 1.420 €
+Puntuación 9.320
+https://izanvil.github.io/rack-and-ruin/?seed=20260921
+```
+
+Quien abra ese enlace no juega a algo parecido: juega exactamente a eso. Cualquier número
+vale como semilla, así que `?seed=1234` también funciona.
+
+> **El determinismo no sale gratis.** `System.Random` no garantiza la misma secuencia entre
+> implementaciones del runtime, así que la misma semilla podía dar partidas distintas en el
+> editor y en la build de WebGL. El generador es propio (`Rng.cs`, un xorshift32 de doce
+> líneas) y la prueba de humo comprueba que dos partidas con la misma semilla terminan
+> idénticas —y que dos semillas distintas no—.
+
+## Cerrar la pestaña no cuesta la partida
+
+La partida se guarda sola cada cinco segundos mientras corre el reloj, y además al cerrar un
+turno y cada vez que la ventana pierde el foco. Al volver, la portada ofrece **continuar**.
+
+Se guarda el estado completo: cada servidor con su temperatura, su desgaste y la tarea que
+tuviera a medias, las incidencias activas con lo que les queda, las mejoras compradas, la
+caja, la reputación y **el estado del generador aleatorio**, que es lo que hace que la
+partida recuperada siga siendo la misma y no una nueva con los mismos números.
+
+Se reanuda siempre **en pausa**, por el mismo motivo por el que se pausa al cambiar de
+pestaña: vuelves a un rack que lleva horas parado y merece una mirada antes de que el reloj
+siga.
+
+Vive en `PlayerPrefs`, que en WebGL es IndexedDB: sobrevive a cerrar la pestaña, que es el
+accidente del que protege. Es una única ranura y se borra al terminar la partida — esto no
+es un sistema de partidas guardadas, es un seguro.
 
 ---
 
@@ -145,6 +256,9 @@ O abre la carpeta desde Unity Hub (*Add project from disk*) con **Unity 6000.0.8
 
 ### Controles
 
+En móvil se toca: una máquina abre su detalle, y la pausa, la velocidad y las mejoras están
+en la barra de abajo. Con teclado:
+
 | | | | |
 |---|---|---|---|
 | `Espacio` Pausa | `1` `2` `3` Velocidad ×1 ×2 ×4 | `Tab` Siguiente incidencia | `M` Mejoras |
@@ -167,10 +281,14 @@ Assets/_Project/Scripts/
 │   ├── ServerUnit.cs        Un servidor: térmica, desgaste, tareas.
 │   ├── Rack.cs              Balanceo de carga por llenado.
 │   ├── IncidentSystem.cs    Incidencias y efectos temporales.
-│   └── Upgrades.cs          Catálogo de mejoras y modificadores.
+│   ├── Upgrades.cs          Catálogo de mejoras y modificadores.
+│   ├── Rng.cs               Generador aleatorio propio, con estado guardable.
+│   ├── RunSeed.cs           Semilla del día, ?seed= de la URL y enlaces.
+│   └── SaveGame.cs          Retrato de la partida y ranura en PlayerPrefs.
 ├── Events/
 │   └── GameEvents.cs        Bus de eventos por instancia y sus payloads.
 ├── UI/                      Interfaz, construida enteramente por código.
+│   ├── UiLayout.cs          Medidas de cada disposición y cuál toca.
 │   ├── GameUi.cs            Monta el lienzo y coordina las vistas.
 │   ├── Ui.cs                Fábrica de widgets y helpers de anclaje.
 │   ├── UiTheme.cs           Paleta y tipografía.
@@ -180,11 +298,14 @@ Assets/_Project/Scripts/
 │   ├── InspectorView.cs     Detalle y acciones.
 │   ├── LogView.cs           Consola de eventos.
 │   ├── UpgradesView.cs      Tienda modal.
-│   └── OverlayView.cs       Intro, cierre de turno y fin de partida.
+│   ├── OverlayView.cs       Intro, cierre de turno y fin de partida.
+│   └── TooSmallView.cs      Aviso para la ventana en rendija.
 ├── Utils/
 │   ├── Fmt.cs               Formateo de números y tiempos.
 │   ├── TextureFactory.cs    Sprites generados por código (SDF).
-│   └── Sfx.cs               Sonido sintetizado.
+│   ├── Sfx.cs               Sonido sintetizado.
+│   ├── Share.cs             Resultado en texto y copia al portapapeles.
+│   └── Viewport.cs          Tamaño de la ventana en píxeles CSS.
 └── Editor/
     ├── SmokeTest.cs         Prueba de humo y banco de equilibrio.
     ├── SceneBuilder.cs      Escena y asset de configuración.
@@ -194,7 +315,7 @@ Assets/_Project/Scripts/
 
 </details>
 
-### Cinco decisiones que explican el resto del código
+### Seis decisiones que explican el resto del código
 
 **Cero assets binarios.** Los sprites son rectángulos redondeados generados con una función
 de distancia con signo, el sonido son tonos sintetizados con envolvente y la tipografía es la
@@ -213,6 +334,11 @@ con este número de widgets sale más simple y más barato.
 **Paso de simulación troceado.** `GameSession.Tick` parte el delta en pasos de 50 ms como
 máximo. La térmica y el desgaste no dependen de los FPS ni se descuadran a velocidad ×4.
 
+**Nada de aleatoriedad del sistema.** Ni `System.Random` ni `UnityEngine.Random`: todo el
+azar sale de un `Rng` propio que se pasa por parámetro a quien lo necesita. Cuesta un
+argumento más en tres firmas y a cambio la partida es reproducible entre plataformas y su
+estado cabe en un `uint`, que es lo que permite guardarla y recuperarla sin que cambie.
+
 **Realimentación térmica acotada a propósito.** El calor se calcula contra la capacidad
 *nominal*, no contra la efectiva. Si no, el *throttling* reduciría la capacidad, lo que
 subiría la ocupación, lo que subiría el calor: una espiral de la que es imposible salir.
@@ -226,8 +352,8 @@ Menú **Server Game** en Unity. Todas funcionan también desde línea de comando
 
 | Herramienta | Qué hace |
 |---|---|
-| **Ejecutar prueba de humo** | Juega 5 partidas automáticas, comprueba las invariantes del modelo, construye la interfaz entera y ejercita las 7 acciones y las 8 mejoras. Informa de fallos **y del equilibrio**. |
-| **Capturar pantallas** | Renderiza la interfaz a PNG a 1600×900 sin entrar en modo Play. |
+| **Ejecutar prueba de humo** | Juega 5 partidas automáticas, comprueba las invariantes del modelo, verifica que la semilla es determinista y que una partida guardada vuelve igual, clasifica tamaños de ventana, construye la interfaz entera **en las tres disposiciones** y ejercita las 7 acciones y las 8 mejoras. Informa de fallos **y del equilibrio**. |
+| **Capturar pantallas** | Renderiza las pantallas a PNG sin entrar en modo Play, en las tres disposiciones: 1600×900, 390×844 y 844×390, que son tamaños reales. |
 | **Compilar ejecutable** | Genera la build de Linux. |
 | **Compilar para web (WebGL)** | Genera la build WebGL con la portada del juego. |
 | **Crear escena principal** | Regenera `Main.unity` y la añade a *Build Settings*. |
@@ -261,7 +387,7 @@ completas con un jugador automático que hace mantenimiento razonable.
 | Jugador | Turnos que aguanta |
 |---|---|
 | No hace nada | **3** |
-| Mantenimiento razonable | **7,6 de media** (peor 7, mejor 9) |
+| Mantenimiento razonable | **8,2 de media** (peor 7, mejor 9) |
 | Usando bien las mejoras | más |
 
 Para ajustarlo: menú **Server Game → Crear asset de configuración**, y lo asignas al campo
