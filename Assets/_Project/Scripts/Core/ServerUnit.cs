@@ -83,7 +83,7 @@ namespace ServerGame.Core
 
         // devuelve true si el servidor se ha averiado en este tick
         public bool Tick(float dt, GameConfig cfg, float coolingMultiplier, float wearMultiplier,
-            float leakMultiplier, float autoPatchPerSecond, System.Random rng)
+            float leakMultiplier, float autoPatchPerSecond, Rng rng)
         {
             AlertFlash = Mathf.Max(0f, AlertFlash - dt * 1.4f);
             CoolingCooldown = Mathf.Max(0f, CoolingCooldown - dt);
@@ -250,6 +250,45 @@ namespace ServerGame.Core
             Task = TaskKind.None;
             TaskRemaining = 0f;
             TaskTotal = 0f;
+        }
+
+        public SavedServer Capture()
+        {
+            return new SavedServer
+            {
+                tier = Tier,
+                state = (int)State,
+                task = (int)Task,
+                health = Health,
+                temperature = Temperature,
+                memoryLeak = MemoryLeak,
+                vulnerability = Vulnerability,
+                uptime = Uptime,
+                coolingCooldown = CoolingCooldown,
+                taskRemaining = TaskRemaining,
+                taskTotal = TaskTotal,
+                load = Load
+            };
+        }
+
+        public void Apply(SavedServer saved)
+        {
+            if (saved == null) return;
+
+            Tier = Mathf.Clamp(saved.tier, 1, MaxTier);
+            State = (ServerState)saved.state;
+            Task = (TaskKind)saved.task;
+            Health = Mathf.Clamp(saved.health, 0f, 100f);
+            Temperature = saved.temperature;
+            MemoryLeak = Mathf.Clamp01(saved.memoryLeak);
+            Vulnerability = Mathf.Clamp(saved.vulnerability, 0f, 100f);
+            Uptime = Mathf.Max(0f, saved.uptime);
+            CoolingCooldown = Mathf.Max(0f, saved.coolingCooldown);
+            TaskTotal = Mathf.Max(0f, saved.taskTotal);
+            TaskRemaining = Mathf.Clamp(saved.taskRemaining, 0f, TaskTotal);
+
+            Load = IsServing ? Mathf.Max(0f, saved.load) : 0f;
+            AlertFlash = 0f;
         }
 
         public string StateLabel()

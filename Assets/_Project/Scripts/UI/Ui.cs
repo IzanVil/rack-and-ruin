@@ -312,6 +312,35 @@ namespace ServerGame.UI
             return element;
         }
 
+        public static RectTransform VScroll(string name, Transform parent)
+        {
+            var viewport = NewRect(name, parent);
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            var content = NewRect("Content", viewport);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.offsetMin = Vector2.zero;
+            content.offsetMax = Vector2.zero;
+
+            var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewport;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Elastic;
+            scroll.elasticity = 0.08f;
+            scroll.inertia = true;
+            scroll.decelerationRate = 0.12f;
+            scroll.scrollSensitivity = 28f;
+
+            return content;
+        }
+
         /// <summary>Línea divisoria de 1 px.</summary>
         public static Image Divider(Transform parent, Color color)
         {

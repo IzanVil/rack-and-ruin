@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ServerGame.Core;
 using ServerGame.Events;
 using ServerGame.Utils;
@@ -11,11 +12,9 @@ namespace ServerGame.UI
     // avisa de lo puntual: log, cierre de turno y fin de partida.
     public sealed class GameUi
     {
-        const float Margin = 16f;
-        const float InspectorWidth = 344f;
-
         readonly GameSession _session;
         readonly EventBus _bus;
+        readonly UiLayout _layout;
         readonly HudView _hud;
         readonly RackView _rack;
         readonly InspectorView _inspector;
@@ -23,14 +22,24 @@ namespace ServerGame.UI
         readonly UpgradesView _upgrades;
         readonly OverlayView _overlay;
 
+        readonly RectTransform _sheet;
+
+        readonly CanvasScaler _scaler;
+        int _dragThreshold = -1;
+
         public Canvas Canvas { get; }
+        public UiLayout Layout => _layout;
+
+        public IReadOnlyList<LogEntry> LogEntries => _log.Entries;
 
         public System.Action RestartRequested;
 
-        public GameUi(GameSession session, Transform parent)
+        public GameUi(GameSession session, Transform parent, UiLayout layout,
+            IReadOnlyList<LogEntry> previousLog = null)
         {
             _session = session;
             _bus = session.Bus;
+            _layout = layout;
 
             var canvasGo = new GameObject("GameCanvas", typeof(RectTransform), typeof(Canvas),
                 typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -41,12 +50,12 @@ namespace ServerGame.UI
             Canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             Canvas.pixelPerfect = false;
 
-            var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1600f, 900f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
-            scaler.referencePixelsPerUnit = 100f;
+            _scaler = canvasGo.GetComponent<CanvasScaler>();
+            _scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            _scaler.referenceResolution = layout.Reference;
+            _scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            _scaler.matchWidthOrHeight = layout.Match;
+            _scaler.referencePixelsPerUnit = 100f;
 
             EnsureEventSystem();
 
@@ -56,45 +65,136 @@ namespace ServerGame.UI
             Ui.Stretch(background.rectTransform);
 
             var root = Ui.NewRect("Root", canvasRect);
-            Ui.Stretch(root, Margin, Margin, Margin, Margin);
+            Ui.Stretch(root, layout.Margin, layout.Margin, layout.Margin, layout.Margin);
 
-            _hud = new HudView(root, session);
+            if (layout.Compact) BuildCompact(root, previousLog, out _hud, out _rack, out _log);
+            else BuildWide(root, previousLog, out _hud, out _rack, out _inspector, out _log);
+
             _hud.UpgradesButton.OnClick(() => _upgrades.Toggle());
 
-            var body = Ui.NewRect("Body", root);
-            Ui.Stretch(body, 0f, 0f, HudView.TotalHeight + 6f, 0f);
+            if (layout.Compact)
+            {
+                _sheet = BuildSheet(canvasRect, out _inspector);
+            }
 
-            var inspectorHolder = Ui.NewRect("InspectorHolder", body);
-            Ui.Right(inspectorHolder, InspectorWidth);
-            _inspector = new InspectorView(inspectorHolder, session);
-
-            var leftColumn = Ui.NewRect("LeftColumn", body);
-            Ui.Stretch(leftColumn, 0f, InspectorWidth + 12f, 0f, 0f);
-
-            var rackHolder = Ui.NewRect("RackHolder", leftColumn);
-            Ui.Stretch(rackHolder, 0f, 0f, 0f, LogView.Height + 12f);
-            _rack = new RackView(rackHolder, session, () => _upgrades.Open());
-
-            var logHolder = Ui.NewRect("LogHolder", leftColumn);
-            Ui.Bottom(logHolder, LogView.Height);
-            _log = new LogView(logHolder, session.Bus);
-
-            _upgrades = new UpgradesView(canvasRect, session);
-            _overlay = new OverlayView(canvasRect);
+            _upgrades = new UpgradesView(canvasRect, session, layout);
+            _overlay = new OverlayView(canvasRect, layout);
 
             _bus.Logged += OnLogged;
             _bus.DayEnded += OnDayEnded;
             _bus.GameOver += OnGameOver;
-
-            _overlay.ShowIntro(session.BeginRun);
         }
+
+        void BuildWide(RectTransform root, IReadOnlyList<LogEntry> previousLog,
+            out HudView hud, out RackView rack, out InspectorView inspector, out LogView log)
+        {
+            hud = new HudView(root, _session, _layout, null);
+
+            var body = Ui.NewRect("Body", root);
+            Ui.Stretch(body, 0f, 0f, _layout.HudTotalHeight + 6f, 0f);
+
+            var inspectorHolder = Ui.NewRect("InspectorHolder", body);
+            Ui.Right(inspectorHolder, _layout.InspectorWidth);
+            inspector = new InspectorView(inspectorHolder, _session, _layout);
+
+            var leftColumn = Ui.NewRect("LeftColumn", body);
+            Ui.Stretch(leftColumn, 0f, _layout.InspectorWidth + _layout.Gap, 0f, 0f);
+
+            var rackHolder = Ui.NewRect("RackHolder", leftColumn);
+            Ui.Stretch(rackHolder, 0f, 0f, 0f, _layout.LogHeight + _layout.Gap);
+            rack = new RackView(rackHolder, _session, _layout, _session.Select, () => _upgrades.Open());
+
+            var logHolder = Ui.NewRect("LogHolder", leftColumn);
+            Ui.Bottom(logHolder, _layout.LogHeight);
+            log = new LogView(logHolder, _session.Bus, _layout, previousLog);
+        }
+
+        void BuildCompact(RectTransform root, IReadOnlyList<LogEntry> previousLog,
+            out HudView hud, out RackView rack, out LogView log)
+        {
+            var controlBar = Ui.NewRect("ControlBar", root);
+            Ui.Bottom(controlBar, _layout.ControlBarHeight);
+
+            hud = new HudView(root, _session, _layout, controlBar);
+
+            var body = Ui.NewRect("Body", root);
+            Ui.Stretch(body, 0f, 0f, _layout.HudTotalHeight + 6f,
+                _layout.ControlBarHeight + _layout.Gap);
+
+            var logHolder = Ui.NewRect("LogHolder", body);
+            Ui.Bottom(logHolder, _layout.LogHeight);
+            log = new LogView(logHolder, _session.Bus, _layout, previousLog);
+
+            var rackHolder = Ui.NewRect("RackHolder", body);
+            Ui.Stretch(rackHolder, 0f, 0f, 0f, _layout.LogHeight + _layout.Gap);
+            rack = new RackView(rackHolder, _session, _layout, OpenSheetFor, () => _upgrades.Open());
+        }
+
+        RectTransform BuildSheet(RectTransform canvasRect, out InspectorView inspector)
+        {
+            var sheet = Ui.NewRect("Sheet", canvasRect);
+            Ui.Stretch(sheet);
+
+            var dim = Ui.NewPanel("Dim", sheet, UiTheme.Overlay, 0);
+            dim.raycastTarget = true;
+            Ui.Stretch(dim.rectTransform);
+            var dimButton = dim.gameObject.AddComponent<Button>();
+            dimButton.targetGraphic = dim;
+            dimButton.transition = Selectable.Transition.None;
+            dimButton.onClick.AddListener(CloseSheet);
+
+            var panel = Ui.NewPanel("Panel", sheet, UiTheme.Panel, UiTheme.RadiusPanel);
+            panel.raycastTarget = true;
+            Ui.Bottom(panel.rectTransform, _layout.SheetHeight);
+
+            var close = Ui.NewButton("CloseSheet", panel.rectTransform, "VOLVER AL RACK",
+                UiTheme.PanelRaised, UiTheme.TextPrimary, 15, UiTheme.RadiusSmall);
+            var closeRect = close.Rect;
+            closeRect.anchorMin = new Vector2(0.5f, 0f);
+            closeRect.anchorMax = new Vector2(0.5f, 0f);
+            closeRect.pivot = new Vector2(0.5f, 0f);
+            closeRect.anchoredPosition = new Vector2(0f, 12f);
+            closeRect.sizeDelta = new Vector2(
+                Mathf.Min(360f, _layout.Reference.x - _layout.Margin * 2f - 28f),
+                _layout.Landscape ? 38f : 46f);
+            close.OnClick(CloseSheet);
+
+            var content = Ui.NewRect("InspectorHolder", panel.rectTransform);
+            Ui.Stretch(content, 0f, 0f, 0f, (_layout.Landscape ? 38f : 46f) + 20f);
+            inspector = new InspectorView(content, _session, _layout, ownPanel: false);
+
+            sheet.gameObject.SetActive(false);
+            return sheet;
+        }
+
+        void OpenSheetFor(ServerUnit unit)
+        {
+            _session.Select(unit);
+            if (_sheet == null) return;
+            _sheet.SetAsLastSibling();
+            _sheet.gameObject.SetActive(true);
+        }
+
+        public void CloseSheet()
+        {
+            if (_sheet != null) _sheet.gameObject.SetActive(false);
+        }
+
+        bool SheetIsOpen => _sheet != null && _sheet.gameObject.activeSelf;
 
         public void Dispose()
         {
             _bus.Logged -= OnLogged;
             _bus.DayEnded -= OnDayEnded;
             _bus.GameOver -= OnGameOver;
+            _log.Dispose();
         }
+
+        public void ShowIntro(OverlayView.IntroOptions options) => _overlay.ShowIntro(options);
+
+        public void ShowDaySummary(DaySummary summary) => OnDayEnded(summary);
+
+        public void ShowGameOver(GameOverInfo info) => OnGameOver(info);
 
         static void OnLogged(LogEntry entry)
         {
@@ -104,13 +204,17 @@ namespace ServerGame.UI
 
         void OnDayEnded(DaySummary summary)
         {
+            CloseSheet();
             _overlay.ShowDaySummary(summary, _session.StartNextDay, _upgrades.Open);
         }
 
         void OnGameOver(GameOverInfo info)
         {
+            CloseSheet();
             _upgrades.Close();
-            _overlay.ShowGameOver(info, () => RestartRequested?.Invoke());
+            _overlay.ShowGameOver(info, RunSeed.Label(_session.Seed, _session.Mode),
+                () => RestartRequested?.Invoke(),
+                () => Share.Copy(Share.ResultText(info, _session.Seed, _session.Mode)));
         }
 
         public void SkipIntro()
@@ -121,6 +225,7 @@ namespace ServerGame.UI
 
         public void OpenUpgradesForCapture() => _upgrades.Open();
         public void CloseUpgradesForCapture() => _upgrades.Close();
+        public void OpenSheetForCapture() => OpenSheetFor(_session.Selected ?? _session.Rack[0]);
 
         public void Tick()
         {
@@ -132,11 +237,24 @@ namespace ServerGame.UI
                 _overlay.Hide();
             }
 
+            SyncDragThreshold();
             HandleInput();
             _hud.Refresh();
             _rack.Refresh();
             _inspector.Refresh();
             _upgrades.Refresh();
+        }
+
+        void SyncDragThreshold()
+        {
+            var events = EventSystem.current;
+            if (events == null) return;
+
+            int threshold = Mathf.Max(8, Mathf.RoundToInt(10f * _scaler.scaleFactor));
+            if (threshold == _dragThreshold) return;
+
+            _dragThreshold = threshold;
+            events.pixelDragThreshold = threshold;
         }
 
         void HandleInput()
@@ -150,6 +268,7 @@ namespace ServerGame.UI
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 if (_upgrades.IsOpen) _upgrades.Close();
+                else CloseSheet();
                 return;
             }
 

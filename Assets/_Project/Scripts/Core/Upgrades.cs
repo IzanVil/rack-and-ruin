@@ -88,6 +88,25 @@ namespace ServerGame.Core
 
         public void Reset() => _levels.Clear();
 
+        public int[] Capture()
+        {
+            var levels = new int[System.Enum.GetValues(typeof(UpgradeId)).Length];
+            foreach (var pair in _levels)
+            {
+                int index = (int)pair.Key;
+                if (index >= 0 && index < levels.Length) levels[index] = pair.Value;
+            }
+            return levels;
+        }
+
+        public void Apply(int[] levels)
+        {
+            _levels.Clear();
+            if (levels == null) return;
+            for (int i = 0; i < levels.Length; i++)
+                if (levels[i] > 0) _levels[(UpgradeId)i] = levels[i];
+        }
+
         public static UpgradeDef Find(UpgradeId id)
         {
             for (int i = 0; i < Catalog.Length; i++)

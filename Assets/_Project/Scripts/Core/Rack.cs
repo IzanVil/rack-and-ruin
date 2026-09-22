@@ -123,7 +123,7 @@ namespace ServerGame.Core
             return served;
         }
 
-        public ServerUnit PickRandom(System.Random rng, System.Func<ServerUnit, bool> filter)
+        public ServerUnit PickRandom(Rng rng, System.Func<ServerUnit, bool> filter)
         {
             int matches = 0;
             ServerUnit chosen = null;

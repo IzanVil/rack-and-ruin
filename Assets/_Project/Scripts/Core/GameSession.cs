@@ -29,8 +29,12 @@ namespace ServerGame.Core
         public readonly UpgradeState Upgrades = new UpgradeState();
 
         readonly IncidentSystem _incidents;
-        readonly System.Random _rng;
+        readonly Rng _rng;
         readonly List<ServerActionInfo> _actionBuffer = new List<ServerActionInfo>(8);
+
+        public int Seed { get; }
+
+        public RunMode Mode { get; }
 
         public SessionPhase Phase { get; private set; } = SessionPhase.Intro;
         public float Money { get; private set; }
@@ -66,10 +70,14 @@ namespace ServerGame.Core
             }
         }
 
-        public GameSession(GameConfig config, int seed)
+        public GameSession(GameConfig config, int seed) : this(config, seed, RunMode.Free) { }
+
+        public GameSession(GameConfig config, int seed, RunMode mode)
         {
             Config = config != null ? config : GameConfig.CreateDefault();
-            _rng = new System.Random(seed);
+            Seed = seed;
+            Mode = mode;
+            _rng = new Rng(seed);
             _incidents = new IncidentSystem(_rng);
 
             Money = Config.startingMoney;
@@ -79,6 +87,79 @@ namespace ServerGame.Core
             Selected = Rack.Count > 0 ? Rack[0] : null;
 
             _incidents.BeginDay(Config, Day);
+        }
+
+        public GameSession(GameConfig config, SaveData save)
+        {
+            Config = config != null ? config : GameConfig.CreateDefault();
+            Seed = save.seed;
+            Mode = (RunMode)save.mode;
+            _rng = new Rng(save.seed) { State = unchecked((uint)save.rngState) };
+            _incidents = new IncidentSystem(_rng);
+
+            Money = Mathf.Max(0f, save.money);
+            Reputation = Mathf.Clamp(save.reputation, 0f, 100f);
+            Day = Mathf.Max(1, save.day);
+            DayTime = Mathf.Clamp(save.dayTime, 0f, Config.dayLengthSeconds);
+
+            DayServedRequests = save.dayServed;
+            DayDroppedRequests = save.dayDropped;
+            DayRevenue = save.dayRevenue;
+            DayPenalties = save.dayPenalties;
+            DaySpending = save.daySpending;
+            TotalServedRequests = save.totalServed;
+
+            Upgrades.Apply(save.upgradeLevels);
+
+            for (int i = 0; i < save.servers.Length; i++) Rack.Add(Config).Apply(save.servers[i]);
+            Selected = Rack.Count > 0 ? Rack[Mathf.Clamp(save.selected, 0, Rack.Count - 1)] : null;
+
+            _incidents.Apply(save);
+
+            Phase = SessionPhase.Playing;
+            Speed = 0f;
+
+            if ((SessionPhase)save.phase == SessionPhase.DayReview)
+            {
+                Phase = SessionPhase.DayReview;
+                StartNextDay();
+                Speed = 0f;
+            }
+        }
+
+        public SaveData CaptureSave()
+        {
+            if (Phase != SessionPhase.Playing && Phase != SessionPhase.DayReview) return null;
+
+            var data = new SaveData
+            {
+                version = SaveGame.Version,
+                seed = Seed,
+                mode = (int)Mode,
+                phase = (int)Phase,
+                rngState = unchecked((int)_rng.State),
+
+                day = Day,
+                dayTime = DayTime,
+                money = Money,
+                reputation = Reputation,
+
+                dayServed = DayServedRequests,
+                dayDropped = DayDroppedRequests,
+                dayRevenue = DayRevenue,
+                dayPenalties = DayPenalties,
+                daySpending = DaySpending,
+                totalServed = TotalServedRequests,
+
+                selected = Selected != null ? Selected.Index : 0,
+                upgradeLevels = Upgrades.Capture(),
+                servers = new SavedServer[Rack.Count]
+            };
+
+            for (int i = 0; i < Rack.Count; i++) data.servers[i] = Rack[i].Capture();
+            _incidents.Capture(data);
+
+            return data;
         }
 
         public void Tick(float deltaTime)

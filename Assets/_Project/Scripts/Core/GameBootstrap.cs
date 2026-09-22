@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using ServerGame.Events;
 using ServerGame.UI;
+using ServerGame.Utils;
 using UnityEngine;
 
 namespace ServerGame.Core
@@ -12,7 +15,8 @@ namespace ServerGame.Core
         [Tooltip("Configuración de equilibrio. Si se deja vacío se usan los valores por defecto.")]
         [SerializeField] GameConfig config;
 
-        [Tooltip("Semilla del generador de incidencias. 0 = aleatoria en cada partida.")]
+        [Tooltip("Fuerza una semilla concreta, útil para depurar. 0 = la que toque: la del " +
+                 "día, o la que venga en la URL con ?seed=")]
         [SerializeField] int randomSeed;
 
         [Tooltip("Crea una cámara si la escena no tiene ninguna, para evitar el aviso de Unity.")]
@@ -33,9 +37,19 @@ namespace ServerGame.Core
         // Por debajo de 5 FPS el juego va a cámara lenta, que es preferible a integrar mal.
         const float MaxFrameDelta = 0.2f;
 
+        const float AutosaveInterval = 5f;
+
         GameSession _session;
         GameUi _ui;
+        TooSmallView _tooSmall;
         Camera _camera;
+        float _sinceAutosave;
+
+        bool _resumedRun;
+        LayoutKind _layoutKind = LayoutKind.Wide;
+        bool _showingTooSmall;
+        DaySummary? _openSummary;
+        GameOverInfo? _openGameOver;
 
         public GameSession Session => _session;
 
@@ -56,11 +70,12 @@ namespace ServerGame.Core
         void Awake()
         {
             Application.targetFrameRate = 60;
+            Viewport.Watch();
 #if UNITY_WEBGL && !UNITY_EDITOR
             SgWatchPageVisibility();
 #endif
             if (createCameraIfMissing) EnsureCamera();
-            StartNewRun();
+            Boot();
         }
 
         void Update()
@@ -69,30 +84,214 @@ namespace ServerGame.Core
 #if UNITY_WEBGL && !UNITY_EDITOR
             // Se consulta antes del Tick: si la pestaña estuvo escondida, la pausa deja
             // Speed a 0 y el Tick de este frame (el que trae el salto de tiempo) no simula.
-            if (SgConsumePageWasHidden() != 0) _session.PauseFromBackground();
+            if (SgConsumePageWasHidden() != 0)
+            {
+                _session.PauseFromBackground();
+                SaveNow();
+            }
 #endif
+            SyncLayout();
+            if (_showingTooSmall) return;
+
             _session.Tick(Mathf.Min(Time.unscaledDeltaTime, MaxFrameDelta));
             _ui.Tick();
+            Autosave();
         }
+
+        void OnApplicationFocus(bool focused)
+        {
+            if (!focused) SaveNow();
+        }
+
+        void OnApplicationQuit() => SaveNow();
 
         void OnDestroy()
         {
             _ui?.Dispose();
         }
 
-        void StartNewRun()
+        void Boot()
+        {
+            if (randomSeed != 0)
+            {
+                StartRun(new GameSession(config, randomSeed, RunMode.Free));
+                return;
+            }
+
+            int shared = RunSeed.FromUrl();
+            var save = SaveGame.Read();
+
+            if (shared != 0 && save != null && save.seed != shared) save = null;
+
+            if (save != null)
+            {
+                StartRun(new GameSession(config, save), resumed: true);
+                return;
+            }
+
+            StartRun(shared != 0
+                ? new GameSession(config, shared, RunMode.Shared)
+                : new GameSession(config, RunSeed.Today(), RunMode.Daily));
+        }
+
+        void StartRun(GameSession session, bool resumed = false, bool autoBegin = false)
         {
             TeardownUi();
 
-            int seed = randomSeed != 0 ? randomSeed : System.Environment.TickCount;
-            _session = new GameSession(config, seed);
+            _session = session;
+            _sinceAutosave = 0f;
+            _resumedRun = resumed;
+            _openSummary = null;
+            _openGameOver = null;
 
-            _ui = new GameUi(_session, transform);
-            _ui.RestartRequested = RestartNextFrame;
+            _layoutKind = CurrentLayoutKind();
+            BuildUi(null);
+
+            _session.Bus.DayEnded += OnDayEnded;
+            _session.Bus.GameOver += OnGameOver;
+
+            if (autoBegin)
+            {
+                _session.BeginRun();
+                return;
+            }
+
+            _ui.ShowIntro(BuildIntro(resumed));
+        }
+
+        void BuildUi(IReadOnlyList<LogEntry> previousLog)
+        {
+            _ui = new GameUi(_session, transform, UiLayout.Of(_layoutKind), previousLog);
+            _ui.RestartRequested = () => Defer(StartOver);
+        }
+
+        LayoutKind CurrentLayoutKind()
+        {
+            var size = Viewport.CssSize();
+            return UiLayout.KindFor(size.x, size.y);
+        }
+
+        void SyncLayout()
+        {
+            var size = Viewport.CssSize();
+            bool tooSmall = UiLayout.IsTooSmall(size.x, size.y);
+
+            if (tooSmall != _showingTooSmall)
+            {
+                _showingTooSmall = tooSmall;
+                if (tooSmall)
+                {
+                    _session.PauseFromBackground();
+                    SaveNow();
+                    _tooSmall = new TooSmallView(transform);
+                }
+                else
+                {
+                    _tooSmall?.Dispose();
+                    _tooSmall = null;
+                }
+            }
+
+            if (_showingTooSmall) return;
+
+            var kind = UiLayout.KindFor(size.x, size.y);
+            if (kind == _layoutKind) return;
+
+            _layoutKind = kind;
+            RebuildUi();
+        }
+
+        void RebuildUi()
+        {
+            var previousLog = _ui?.LogEntries;
+            var carried = previousLog != null ? new List<LogEntry>(previousLog) : null;
+
+            if (_ui != null)
+            {
+                _ui.Dispose();
+                if (_ui.Canvas != null) Destroy(_ui.Canvas.gameObject);
+            }
+
+            BuildUi(carried);
+
+            if (_session.Phase == SessionPhase.Intro) _ui.ShowIntro(BuildIntro(_resumedRun));
+            else if (_session.Phase == SessionPhase.DayReview && _openSummary.HasValue)
+                _ui.ShowDaySummary(_openSummary.Value);
+            else if (_session.Phase == SessionPhase.GameOver && _openGameOver.HasValue)
+                _ui.ShowGameOver(_openGameOver.Value);
+        }
+
+        OverlayView.IntroOptions BuildIntro(bool resumed)
+        {
+            if (resumed)
+            {
+                return OverlayView.ResumeIntro(_session.Seed, _session.Mode, _session.Day,
+                    () => Defer(StartOver));
+            }
+
+            return OverlayView.NewRunIntro(_session.Seed, _session.Mode, _session.BeginRun,
+                () => Defer(StartDailyRun), () => Defer(StartFreeRun));
+        }
+
+        void StartOver()
+        {
+            SaveGame.Clear();
+            Boot();
+        }
+
+        void StartFreeRun()
+        {
+            SaveGame.Clear();
+            StartRun(new GameSession(config, RunSeed.Random(), RunMode.Free), autoBegin: true);
+        }
+
+        void StartDailyRun()
+        {
+            SaveGame.Clear();
+            StartRun(new GameSession(config, RunSeed.Today(), RunMode.Daily), autoBegin: true);
+        }
+
+        void Autosave()
+        {
+            if (_session.Phase != SessionPhase.Playing || _session.IsPaused) return;
+
+            _sinceAutosave += Time.unscaledDeltaTime;
+            if (_sinceAutosave < AutosaveInterval) return;
+
+            _sinceAutosave = 0f;
+            SaveNow();
+        }
+
+        void SaveNow()
+        {
+            var data = _session?.CaptureSave();
+            if (data != null) SaveGame.Write(data);
+        }
+
+        void OnDayEnded(DaySummary summary)
+        {
+            _openSummary = summary;
+            SaveNow();
+        }
+
+        void OnGameOver(GameOverInfo info)
+        {
+            _openGameOver = info;
+            SaveGame.Clear();
         }
 
         void TeardownUi()
         {
+            if (_session != null)
+            {
+                _session.Bus.DayEnded -= OnDayEnded;
+                _session.Bus.GameOver -= OnGameOver;
+            }
+
+            _tooSmall?.Dispose();
+            _tooSmall = null;
+            _showingTooSmall = false;
+
             if (_ui == null) return;
             _ui.Dispose();
             if (_ui.Canvas != null) Destroy(_ui.Canvas.gameObject);
@@ -100,15 +299,15 @@ namespace ServerGame.Core
         }
 
         // se aplaza un frame: la petición viene del click de un botón que se va a destruir
-        void RestartNextFrame()
+        void Defer(System.Action action)
         {
-            StartCoroutine(RestartRoutine());
+            StartCoroutine(DeferRoutine(action));
         }
 
-        System.Collections.IEnumerator RestartRoutine()
+        System.Collections.IEnumerator DeferRoutine(System.Action action)
         {
             yield return null;
-            StartNewRun();
+            action();
         }
 
         void EnsureCamera()
