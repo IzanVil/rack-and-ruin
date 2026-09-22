@@ -120,8 +120,28 @@ puede saber qué código hay publicado. Si el árbol está sucio al publicar, av
 ## En un móvil
 
 Antes la página se negaba a cargar por debajo de 720 px: la interfaz estaba hecha a
-1600×900 y en un teléfono los números del rack no se leían. Ya no hay puerta, porque hay
-una segunda disposición.
+1600×900 y en un teléfono los números del rack no se leían. Ya no hay puerta.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/movil.png" alt="El rack en un móvil en vertical"><br><sub><b>Vertical.</b> Dos columnas con scroll, consola de tres líneas y los controles abajo, donde llega el pulgar.</sub></td>
+<td width="50%"><img src="docs/movil-detalle.png" alt="La hoja de detalle de un servidor"><br><sub><b>La hoja.</b> Tocar una máquina la sube con sus medidas y sus siete acciones. Se cierra tocando fuera.</sub></td>
+</tr>
+</table>
+
+<img src="docs/tumbado.png" alt="El rack con el móvil tumbado">
+
+<sub><b>Tumbado.</b> Cuatro columnas de tarjeta baja y el HUD de vuelta a una sola fila:
+aquí lo que falta es alto, no ancho.</sub>
+
+<br>
+
+<img src="docs/tumbado-detalle.png" alt="La hoja de detalle con el móvil tumbado">
+
+<sub><b>Y su hoja, repartida en dos:</b> medidas a la izquierda, las siete acciones a la
+derecha. Apilada, las acciones caerían bajo el pliegue, que es justo para lo que se abre.</sub>
+
+<br>
 
 **No es la de escritorio encogida.** La referencia del lienzo pasa de 1600 a 420 unidades,
 que es el ancho de un móvil en píxeles CSS, así que un botón de 42 unidades mide 42 píxeles
@@ -134,7 +154,7 @@ revés. Son **tres disposiciones**.
 |---|---|---|---|
 | **Referencia** | 1600 × 900 | 420 de ancho | 390 de alto |
 | **Rack** | 5 columnas | 2 columnas con scroll | 4 columnas, tarjeta baja |
-| **Inspector** | columna fija | hoja inferior | hoja inferior, con scroll |
+| **Inspector** | columna fija | hoja inferior | hoja inferior, en dos columnas |
 | **Velocidad y mejoras** | esquina del HUD | barra inferior | barra inferior |
 | **HUD** | una fila de seis | dos filas | una fila de seis |
 | **Consola** | 8 líneas | 3 líneas | 2 líneas |
@@ -143,9 +163,12 @@ revés. Son **tres disposiciones**.
 CARGA/TEMP/SALUD, que se deducen del orden y del color. Cuesta un vistazo más y devuelve 42
 unidades de alto por tarjeta, que tumbado es una fila entera de rack.
 
-**Lo que no cabe, se recorre con el dedo.** Tumbado, el inspector pide casi 600 unidades y
-la pantalla da 390; la tienda son ocho mejoras y caben tres. Las listas largas llevan scroll
-solo en esa disposición: en las otras dos caben enteras y no hace falta.
+**Donde falta alto, se usa el ancho.** Tumbado sobran 860 unidades a lo ancho y solo hay
+390 de alto, así que lo que no cabe apilado se reparte en dos columnas: el inspector, el
+texto de la portada y las ocho filas del cierre de turno. La alternativa era el scroll, y se
+probó: una lista cortada por la mitad se lee como lista, pero un párrafo cortado a media
+frase se lee como algo roto. **La única que conserva scroll es la tienda**, porque ocho
+mejoras no caben de ninguna manera.
 
 La decisión la toma `UiLayout.KindFor` a partir del tamaño de la ventana **en píxeles CSS**,
 que la página mide y le pasa al juego. No vale `Screen.width`: el lienzo se renderiza a 2x o
