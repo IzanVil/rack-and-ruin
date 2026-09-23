@@ -8,7 +8,7 @@ Simulador de mantenimiento de un centro de datos en tiempo real.
 Tú contra la entropía, y la entropía tiene mejor uptime.
 
 ![Unity](https://img.shields.io/badge/Unity-6000.0.82f1-000000?style=flat-square&logo=unity&logoColor=white)
-![C#](https://img.shields.io/badge/C%23-6.901%20líneas-239120?style=flat-square&logo=csharp&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-6.923%20líneas-239120?style=flat-square&logo=csharp&logoColor=white)
 ![Assets binarios](https://img.shields.io/badge/assets%20binarios-0-38BDF8?style=flat-square)
 ![Prueba de humo](https://img.shields.io/badge/prueba%20de%20humo-0%20fallos-34D399?style=flat-square)
 ![Plataforma](https://img.shields.io/badge/Linux-x86__64-FBBF24?style=flat-square&logo=linux&logoColor=white)
@@ -76,7 +76,7 @@ puedes permitirte apagar nada. A partir de ahí solo miras cómo baja el número
 
 La build **no se versiona en `main`**: se compila en local y se publica a una rama huérfana
 `gh-pages` que se reescribe entera en cada publicación. Así ni `main` ni `gh-pages` acumulan
-los ~7 MB de binarios de cada versión.
+los ~5 MB de binarios de cada versión.
 
 Cuatro cosas que solo pasan en el navegador:
 
@@ -114,6 +114,50 @@ puede saber qué código hay publicado. Si el árbol está sucio al publicar, av
 
 > **Puesta en marcha (una sola vez):** en el repo, **Settings → Pages → Source: Deploy from
 > a branch**, rama `gh-pages`, carpeta `/ (root)`.
+
+**Pesa 5,4 MB.** Ver *[Lo que no está en la build](#lo-que-no-está-en-la-build)*.
+
+---
+
+## Lo que no está en la build
+
+En algo que se comparte por enlace, el tamaño de la primera carga es la métrica que más
+importa: es el tiempo que alguien mira una barra de progreso antes de decidir si le
+interesa. Estaba en 7,3 MB y ahora está en **5,4 MB**, un 26 % menos, sin tocar una línea
+de lógica.
+
+| | Antes | Ahora |
+|---|---:|---:|
+| `.wasm` | 5,64 MB | **4,02 MB** |
+| datos | 1,29 MB | **1,00 MB** |
+| total | 7,3 MB | **5,4 MB** |
+
+Salió de tres sitios:
+
+**El manifiesto traía los 32 módulos por defecto.** Cloth, terrain, vehicles, navmesh,
+partículas, física 2D y 3D, vídeo, VR, XR, los cuatro `unitywebrequest`… El juego no usa
+ninguno: es una interfaz de uGUI construida por código, con sonido sintetizado y cero
+assets binarios. Quedan seis (`audio`, `imageconversion`, `imgui`, `jsonserialize`, `ui`,
+`uielements`) y un módulo que no está en el manifiesto no entra en la build, que es bastante
+más efectivo que confiar en que el podador lo quite.
+
+**El podado de código gestionado estaba sin fijar.** Ahora va en `High` desde
+`BuildTools.ConfigureWebGL`. El juego no carga nada por nombre ni usa reflexión sobre tipos
+propios, así que se puede podar al máximo.
+
+**Sobraba el paquete de Input System.** La entrada estaba en modo «ambos» y se empaquetaban
+los dos sistemas, cuando el juego solo usa el `Input` clásico. `GameUi.EnsureEventSystem`
+busca el módulo del paquete por reflexión y, al no encontrarlo, cae solo en
+`StandaloneInputModule`, que en el navegador maneja ratón y dedo igual. La prueba de humo
+comprueba que el EventSystem acaba con un módulo de entrada: quedarse sin ninguno dibujaría
+la interfaz entera sin que respondiera a un solo toque, y eso no lo delata ningún error de
+compilación.
+
+> **Un `link.xml` que no hizo falta.** `JsonUtility` lee los campos de la partida guardada
+> por reflexión, que es justo lo que el podador no ve, así que se añadió uno para
+> conservarlos. Al comprobarlo —compilando con él y sin él y buscando los nombres de los
+> campos dentro del `.wasm` y del fichero de datos— resultó que Unity ya los conserva solo:
+> las dos builds salieron con los mismos 4,02 MB y los mismos campos dentro. Se quitó.
 
 ---
 
