@@ -64,7 +64,9 @@ namespace ServerGame.EditorTools
             PlayerSettings.WebGL.powerPreference = WebGLPowerPreference.HighPerformance;
 
             PlayerSettings.runInBackground = true;
-            PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.WebGL, ScriptingImplementation.IL2CPP);
+            var webgl = UnityEditor.Build.NamedBuildTarget.WebGL;
+            PlayerSettings.SetScriptingBackend(webgl, ScriptingImplementation.IL2CPP);
+            PlayerSettings.SetManagedStrippingLevel(webgl, ManagedStrippingLevel.High);
 
             // El juego se diseñó a 1600x900; se mantiene esa proporción por defecto.
             PlayerSettings.defaultWebScreenWidth = 1600;

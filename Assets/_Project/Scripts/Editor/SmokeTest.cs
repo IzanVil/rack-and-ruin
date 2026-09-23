@@ -3,6 +3,7 @@ using System.Text;
 using ServerGame.Core;
 using ServerGame.UI;
 using UnityEditor;
+using UnityEngine.EventSystems;
 using UnityEngine;
 
 namespace ServerGame.EditorTools
@@ -546,6 +547,17 @@ namespace ServerGame.EditorTools
                 session.Rack[1].Fail();
                 session.SetSpeed(0f);
                 ui.Tick();
+
+                var events = UnityEngine.Object.FindFirstObjectByType<EventSystem>();
+                failures += Check(log, events != null, "No se creó ningún EventSystem.");
+                if (events != null)
+                {
+                    var module = events.GetComponent<BaseInputModule>();
+                    failures += Check(log, module != null,
+                        "El EventSystem se quedó sin módulo de entrada: la interfaz no respondería.");
+                    if (module != null)
+                        log.AppendLine("  Módulo de entrada: " + module.GetType().Name + ".");
+                }
 
                 ui.OpenUpgradesForCapture();
                 ui.Tick();
