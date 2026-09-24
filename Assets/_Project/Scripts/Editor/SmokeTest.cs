@@ -42,13 +42,24 @@ namespace ServerGame.EditorTools
 
             log.AppendLine("===== PRUEBA DE HUMO: UPTIME =====");
 
-            failures += RunSimulation(log);
-            failures += RunSeedPlumbing(log);
-            failures += RunLayoutDecisions(log);
-            failures += RunDeterminism(log);
-            failures += RunSaveRoundTrip(log);
-            failures += RunUiConstruction(log);
-            failures += RunActionCoverage(log);
+            string historial = PlayerPrefs.GetString(RunHistory.Key, string.Empty);
+            try
+            {
+                failures += RunSimulation(log);
+                failures += RunSeedPlumbing(log);
+                failures += RunLayoutDecisions(log);
+                failures += RunHistoryChecks(log);
+                failures += RunDeterminism(log);
+                failures += RunSaveRoundTrip(log);
+                failures += RunUiConstruction(log);
+                failures += RunActionCoverage(log);
+            }
+            finally
+            {
+                if (string.IsNullOrEmpty(historial)) PlayerPrefs.DeleteKey(RunHistory.Key);
+                else PlayerPrefs.SetString(RunHistory.Key, historial);
+                PlayerPrefs.Save();
+            }
 
             log.AppendLine();
             log.AppendLine(failures == 0
@@ -271,6 +282,91 @@ namespace ServerGame.EditorTools
                 "Una semilla que no es una fecha no debería fingir serlo.");
 
             if (failures == 0) log.AppendLine("  Enlaces con semilla: leídos y generados correctamente.");
+            return failures;
+        }
+
+        static int RunHistoryChecks(StringBuilder log)
+        {
+            log.AppendLine();
+            log.AppendLine("--- Historial y racha ---");
+
+            int failures = 0;
+            var hoy = new DateTime(2026, 9, 24);
+
+            RunResult Partida(DateTime dia, RunMode modo, int score) => new RunResult
+            {
+                seed = modo == RunMode.Daily ? RunSeed.ForDate(dia) : 4242,
+                mode = (int)modo,
+                score = score
+            };
+
+            var data = new RunHistoryData { version = RunHistory.Version };
+            RunHistory.Add(data, Partida(hoy, RunMode.Daily, 5000));
+            RunHistory.Add(data, Partida(hoy, RunMode.Free, 40000));
+
+            failures += Check(log, RunHistory.BestScore(data, RunMode.Daily) == 5000,
+                "El récord del turno del día se contamina con las partidas libres: " +
+                RunHistory.BestScore(data, RunMode.Daily));
+            failures += Check(log, RunHistory.BestScore(data, RunMode.Free) == 40000,
+                "El récord de partida libre no sale bien.");
+            failures += Check(log, RunHistory.BestScore(data, RunMode.Shared) == 0,
+                "Una modalidad sin partidas debería no tener récord.");
+
+            var conLegado = new RunHistoryData { version = RunHistory.Version, legacyBest = 12000 };
+            failures += Check(log, RunHistory.BestScore(conLegado, RunMode.Daily) == 12000,
+                "El récord anterior debería conservarse como suelo.");
+            RunHistory.Add(conLegado, Partida(hoy, RunMode.Daily, 15000));
+            failures += Check(log, RunHistory.BestScore(conLegado, RunMode.Daily) == 15000,
+                "Una partida mejor que el récord anterior debería sustituirlo.");
+
+            var seguidos = new RunHistoryData { version = RunHistory.Version };
+            for (int i = 0; i < 3; i++)
+                RunHistory.Add(seguidos, Partida(hoy.AddDays(-i), RunMode.Daily, 100));
+            failures += Check(log, RunHistory.DailyStreak(seguidos, hoy) == 3,
+                "Tres días seguidos deberían dar racha 3, dan " +
+                RunHistory.DailyStreak(seguidos, hoy));
+
+            var hastaAyer = new RunHistoryData { version = RunHistory.Version };
+            for (int i = 1; i <= 3; i++)
+                RunHistory.Add(hastaAyer, Partida(hoy.AddDays(-i), RunMode.Daily, 100));
+            failures += Check(log, RunHistory.DailyStreak(hastaAyer, hoy) == 3,
+                "Con la última partida de ayer la racha debería seguir viva.");
+
+            var rota = new RunHistoryData { version = RunHistory.Version };
+            for (int i = 2; i <= 4; i++)
+                RunHistory.Add(rota, Partida(hoy.AddDays(-i), RunMode.Daily, 100));
+            failures += Check(log, RunHistory.DailyStreak(rota, hoy) == 0,
+                "Saltarse un día entero debería romper la racha, da " +
+                RunHistory.DailyStreak(rota, hoy));
+
+            var soloLibres = new RunHistoryData { version = RunHistory.Version };
+            RunHistory.Add(soloLibres, Partida(hoy, RunMode.Free, 100));
+            failures += Check(log, RunHistory.DailyStreak(soloLibres, hoy) == 0,
+                "Una partida libre no debería contar como turno del día.");
+            failures += Check(log, RunHistory.DailyRuns(soloLibres) == 0,
+                "Una partida libre no debería contarse entre las del día.");
+
+            var repetido = new RunHistoryData { version = RunHistory.Version };
+            RunHistory.Add(repetido, Partida(hoy, RunMode.Daily, 100));
+            RunHistory.Add(repetido, Partida(hoy, RunMode.Daily, 200));
+            failures += Check(log, RunHistory.DailyStreak(repetido, hoy) == 1,
+                "Dos partidas el mismo día deberían dar racha 1, dan " +
+                RunHistory.DailyStreak(repetido, hoy));
+            failures += Check(log, RunHistory.DailyRuns(repetido) == 2,
+                "Deberían contarse las dos partidas del día.");
+
+            var largo = new RunHistoryData { version = RunHistory.Version };
+            for (int i = 0; i < RunHistory.MaxRuns + 25; i++)
+                RunHistory.Add(largo, Partida(hoy.AddDays(-i), RunMode.Daily, i));
+            failures += Check(log, largo.runs.Count == RunHistory.MaxRuns,
+                "El historial debería toparse en " + RunHistory.MaxRuns + ", tiene " +
+                largo.runs.Count);
+            failures += Check(log, largo.runs[largo.runs.Count - 1].score == RunHistory.MaxRuns + 24,
+                "Al recortar el historial debería conservar las partidas más recientes.");
+
+            if (failures == 0)
+                log.AppendLine("  Récord por modalidad, racha y tope del historial: correctos.");
+
             return failures;
         }
 

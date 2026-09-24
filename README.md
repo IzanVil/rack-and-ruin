@@ -8,7 +8,7 @@ Simulador de mantenimiento de un centro de datos en tiempo real.
 Tú contra la entropía, y la entropía tiene mejor uptime.
 
 ![Unity](https://img.shields.io/badge/Unity-6000.0.82f1-000000?style=flat-square&logo=unity&logoColor=white)
-![C#](https://img.shields.io/badge/C%23-6.923%20líneas-239120?style=flat-square&logo=csharp&logoColor=white)
+![C#](https://img.shields.io/badge/C%23-7.283%20líneas-239120?style=flat-square&logo=csharp&logoColor=white)
 ![Assets binarios](https://img.shields.io/badge/assets%20binarios-0-38BDF8?style=flat-square)
 ![Prueba de humo](https://img.shields.io/badge/prueba%20de%20humo-0%20fallos-34D399?style=flat-square)
 ![Plataforma](https://img.shields.io/badge/Linux-x86__64-FBBF24?style=flat-square&logo=linux&logoColor=white)
@@ -262,12 +262,35 @@ Al terminar, el botón **Copiar resultado** deja en el portapapeles algo así:
 UPTIME · Turno de Noche
 Turno del día 21/09/2026
 7 turnos · 2,4M peticiones · 1.420 €
-Puntuación 9.320
+Puntuación 9.320 (récord personal)
+Racha: 5 días seguidos
 https://izanvil.github.io/rack-and-ruin/?seed=20260921
 ```
 
 Quien abra ese enlace no juega a algo parecido: juega exactamente a eso. Cualquier número
 vale como semilla, así que `?seed=1234` también funciona.
+
+### El récord y la racha
+
+El récord vivía en **una sola cifra que mezclaba las tres modalidades**, y eso no se podía
+comparar: una partida libre puede tocarle una semilla mucho más amable que la del día. Ahora
+se guardan las últimas 60 partidas con la modalidad de la que venían (`RunHistory`), y el
+récord que se enseña al perder es el de **esa** modalidad.
+
+De las del día sale además **la racha**, que es lo que da motivo para volver mañana. No hace
+falta guardar ningún reloj: la semilla del turno del día *es* la fecha en formato `aaaammdd`,
+así que los días seguidos se cuentan desde las propias semillas. Se cuenta hacia atrás desde
+hoy, y si hoy todavía no se ha jugado, desde ayer: la racha sigue viva hasta que se salta un
+día entero. La portada la enseña antes de empezar.
+
+> Vive en `PlayerPrefs`, igual que la partida guardada. **No es un ranking**: no sale del
+> navegador de quien juega. Quien tenía marca de antes no la pierde — la cifra vieja se
+> conserva como suelo hasta que una partida de verdad la supere.
+
+> **Las herramientas no ensucian el historial.** La prueba de humo juega cinco partidas
+> hasta el final y las capturas llegan al fin de partida, así que ambas apuntarían derrotas
+> inventadas en el historial de quien las ejecuta; y como varias semillas de prueba son
+> fechas válidas, además le falsearían la racha. Las dos lo guardan y lo restauran.
 
 > **El determinismo no sale gratis.** `System.Random` no garantiza la misma secuencia entre
 > implementaciones del runtime, así que la misma semilla podía dar partidas distintas en el
@@ -351,6 +374,7 @@ Assets/_Project/Scripts/
 │   ├── Upgrades.cs          Catálogo de mejoras y modificadores.
 │   ├── Rng.cs               Generador aleatorio propio, con estado guardable.
 │   ├── RunSeed.cs           Semilla del día, ?seed= de la URL y enlaces.
+│   ├── RunHistory.cs        Últimas partidas, récord por modalidad y racha.
 │   └── SaveGame.cs          Retrato de la partida y ranura en PlayerPrefs.
 ├── Events/
 │   └── GameEvents.cs        Bus de eventos por instancia y sus payloads.
@@ -419,7 +443,7 @@ Menú **Server Game** en Unity. Todas funcionan también desde línea de comando
 
 | Herramienta | Qué hace |
 |---|---|
-| **Ejecutar prueba de humo** | Juega 5 partidas automáticas, comprueba las invariantes del modelo, verifica que la semilla es determinista y que una partida guardada vuelve igual, clasifica tamaños de ventana, construye la interfaz entera **en las tres disposiciones** y ejercita las 7 acciones y las 8 mejoras. Informa de fallos **y del equilibrio**. |
+| **Ejecutar prueba de humo** | Juega 5 partidas automáticas, comprueba las invariantes del modelo, verifica que la semilla es determinista, que una partida guardada vuelve igual y que el récord no mezcla modalidades ni la racha cuenta de más, clasifica tamaños de ventana, construye la interfaz entera **en las tres disposiciones** y ejercita las 7 acciones y las 8 mejoras. Informa de fallos **y del equilibrio**. |
 | **Capturar pantallas** | Renderiza las pantallas a PNG sin entrar en modo Play, en las tres disposiciones: 1600×900, 390×844 y 844×390, que son tamaños reales. |
 | **Compilar ejecutable** | Genera la build de Linux. |
 | **Compilar para web (WebGL)** | Genera la build WebGL con la portada del juego. |
