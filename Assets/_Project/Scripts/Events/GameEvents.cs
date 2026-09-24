@@ -62,9 +62,11 @@ namespace ServerGame.Events
         public readonly int Score;
         public readonly int BestScore;
         public readonly bool IsNewRecord;
+        public readonly int DailyStreak;
+        public readonly int DailyRuns;
 
         public GameOverInfo(string title, string reason, int daysSurvived, float totalServed,
-            float money, int score, int bestScore, bool isNewRecord)
+            float money, int score, int bestScore, bool isNewRecord, int dailyStreak, int dailyRuns)
         {
             Title = title;
             Reason = reason;
@@ -74,6 +76,8 @@ namespace ServerGame.Events
             Score = score;
             BestScore = bestScore;
             IsNewRecord = isNewRecord;
+            DailyStreak = dailyStreak;
+            DailyRuns = dailyRuns;
         }
     }
 

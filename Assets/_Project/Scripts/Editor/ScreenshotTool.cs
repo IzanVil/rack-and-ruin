@@ -61,8 +61,18 @@ namespace ServerGame.EditorTools
         {
             Directory.CreateDirectory(folder);
 
-            for (int i = 0; i < Shots.Length; i++)
-                if (!CaptureShot(folder, Shots[i])) return false;
+            string historial = PlayerPrefs.GetString(RunHistory.Key, string.Empty);
+            try
+            {
+                for (int i = 0; i < Shots.Length; i++)
+                    if (!CaptureShot(folder, Shots[i])) return false;
+            }
+            finally
+            {
+                if (string.IsNullOrEmpty(historial)) PlayerPrefs.DeleteKey(RunHistory.Key);
+                else PlayerPrefs.SetString(RunHistory.Key, historial);
+                PlayerPrefs.Save();
+            }
 
             Debug.Log("Capturas guardadas en " + Path.GetFullPath(folder));
             return true;
@@ -79,7 +89,20 @@ namespace ServerGame.EditorTools
             try
             {
                 cfg = GameConfig.CreateDefault();
-                var session = new GameSession(cfg, 20260828);
+                var session = new GameSession(cfg, 20260828, RunMode.Daily);
+
+                var historial = new RunHistoryData { version = RunHistory.Version };
+                for (int d = 1; d <= 4; d++)
+                {
+                    RunHistory.Add(historial, new RunResult
+                    {
+                        seed = RunSeed.ForDate(DateTime.UtcNow.Date.AddDays(-d)),
+                        mode = (int)RunMode.Daily,
+                        days = 6,
+                        score = 7000 + d * 250
+                    });
+                }
+                RunHistory.Save(historial);
 
                 host = new GameObject("ScreenshotHost");
                 ui = new GameUi(session, host.transform, shot.Layout);

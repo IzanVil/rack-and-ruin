@@ -229,8 +229,10 @@ namespace ServerGame.Core
                     () => Defer(StartOver));
             }
 
+            int streak = RunHistory.DailyStreak(RunHistory.Load(), System.DateTime.UtcNow);
+
             return OverlayView.NewRunIntro(_session.Seed, _session.Mode, _session.BeginRun,
-                () => Defer(StartDailyRun), () => Defer(StartFreeRun));
+                () => Defer(StartDailyRun), () => Defer(StartFreeRun), streak);
         }
 
         void StartOver()

@@ -21,8 +21,6 @@ namespace ServerGame.Core
 
     public sealed class GameSession
     {
-        public const string BestScoreKey = "ServerGame.BestScore";
-
         public readonly GameConfig Config;
         public readonly EventBus Bus = new EventBus();
         public readonly Rack Rack = new Rack();
@@ -364,17 +362,31 @@ namespace ServerGame.Core
             Speed = 0f;
 
             int score = Mathf.RoundToInt(Day * 1000f + TotalServedRequests / 100f + Money);
-            int best = PlayerPrefs.GetInt(BestScoreKey, 0);
+
+            var history = RunHistory.Load();
+            int best = RunHistory.BestScore(history, Mode);
             bool record = score > best;
-            if (record)
+
+            RunHistory.Add(history, new RunResult
             {
-                best = score;
-                PlayerPrefs.SetInt(BestScoreKey, best);
-                PlayerPrefs.Save();
-            }
+                seed = Seed,
+                mode = (int)Mode,
+                days = Mathf.Max(0, Day - 1),
+                score = score,
+                served = TotalServedRequests,
+                money = Money
+            });
+            RunHistory.Save(history);
+
+            int streak = Mode == RunMode.Daily
+                ? RunHistory.DailyStreak(history, System.DateTime.UtcNow)
+                : 0;
+
+            if (record) best = score;
 
             Bus.Log(title + " " + reason, LogLevel.Critical, Day, DayTime);
-            Bus.RaiseGameOver(new GameOverInfo(title, reason, Day, TotalServedRequests, Money, score, best, record));
+            Bus.RaiseGameOver(new GameOverInfo(title, reason, Day, TotalServedRequests, Money,
+                score, best, record, streak, RunHistory.DailyRuns(history)));
             Bus.RaiseChanged();
         }
 

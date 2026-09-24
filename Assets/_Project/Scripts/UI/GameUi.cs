@@ -212,7 +212,7 @@ namespace ServerGame.UI
         {
             CloseSheet();
             _upgrades.Close();
-            _overlay.ShowGameOver(info, RunSeed.Label(_session.Seed, _session.Mode),
+            _overlay.ShowGameOver(info, _session.Mode, RunSeed.Label(_session.Seed, _session.Mode),
                 () => RestartRequested?.Invoke(),
                 () => Share.Copy(Share.ResultText(info, _session.Seed, _session.Mode)));
         }

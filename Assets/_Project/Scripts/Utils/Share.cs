@@ -16,12 +16,17 @@ namespace ServerGame.Utils
             int daysCompleted = Mathf.Max(0, info.DaysSurvived - 1);
             string turns = daysCompleted == 1 ? "1 turno" : daysCompleted + " turnos";
 
+            string racha = mode == RunMode.Daily && info.DailyStreak > 1
+                ? "Racha: " + info.DailyStreak + " días seguidos\n"
+                : string.Empty;
+
             return "UPTIME · Turno de Noche\n" +
                    RunSeed.Label(seed, mode) + "\n" +
                    turns + " · " + Fmt.Compact(info.TotalServed) + " peticiones · " +
                    Fmt.Money(info.Money) + "\n" +
                    "Puntuación " + Fmt.Thousands(info.Score) +
                    (info.IsNewRecord ? " (récord personal)" : string.Empty) + "\n" +
+                   racha +
                    RunSeed.ShareUrl(seed);
         }
 

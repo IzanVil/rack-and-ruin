@@ -207,8 +207,18 @@ namespace ServerGame.UI
             _rowValues[index].color = valueColor;
         }
 
+        static string BestLabel(RunMode mode)
+        {
+            switch (mode)
+            {
+                case RunMode.Daily: return "Mejor en el turno del día";
+                case RunMode.Shared: return "Mejor en turnos compartidos";
+                default: return "Mejor en partida libre";
+            }
+        }
+
         public static IntroOptions NewRunIntro(int seed, RunMode mode, Action onStart,
-            Action onDailyRun, Action onFreeRun)
+            Action onDailyRun, Action onFreeRun, int dailyStreak = 0)
         {
             var options = new IntroOptions
             {
@@ -222,6 +232,7 @@ namespace ServerGame.UI
             {
                 case RunMode.Daily:
                     options.Note = RunSeed.Label(seed, mode) +
+                        (dailyStreak > 1 ? " · llevas " + dailyStreak + " días seguidos" : "") +
                         ". Hoy todo el mundo juega este mismo rack: las mismas incidencias, " +
                         "en el mismo momento y sobre las mismas máquinas.";
                     options.PrimaryLabel = "EMPEZAR EL TURNO DEL DÍA";
@@ -346,7 +357,8 @@ namespace ServerGame.UI
             Show(Screen.DaySummary);
         }
 
-        public void ShowGameOver(GameOverInfo info, string runLabel, Action onRestart, Func<bool> onShare)
+        public void ShowGameOver(GameOverInfo info, RunMode mode, string runLabel,
+            Action onRestart, Func<bool> onShare)
         {
             _title.text = "<color=#" + ColorUtility.ToHtmlStringRGB(UiTheme.Critical) + ">" + info.Title + "</color>";
             _subtitle.text = info.Reason;
@@ -359,9 +371,21 @@ namespace ServerGame.UI
             SetRow(1, "Peticiones atendidas en total", Fmt.Compact(info.TotalServed), UiTheme.TextPrimary);
             SetRow(2, "Caja final", Fmt.Money(info.Money), UiTheme.Money);
             SetRow(3, "Puntuación", Fmt.Thousands(info.Score), UiTheme.Accent);
-            SetRow(4, info.IsNewRecord ? "¡NUEVO RÉCORD!" : "Mejor puntuación",
+            SetRow(4, info.IsNewRecord ? "¡NUEVO RÉCORD!" : BestLabel(mode),
                 Fmt.Thousands(info.BestScore), info.IsNewRecord ? UiTheme.Ok : UiTheme.TextMuted);
-            SetRow(5, "Partida", runLabel, UiTheme.TextMuted);
+
+            int next = 5;
+            if (mode == RunMode.Daily)
+            {
+                string racha = info.DailyStreak == 1
+                    ? "1 día"
+                    : info.DailyStreak + " días seguidos";
+                if (!_compact) racha += "  ·  " + info.DailyRuns + " en total";
+                SetRow(next++, "Racha del turno del día", racha,
+                    info.DailyStreak > 1 ? UiTheme.Ok : UiTheme.TextMuted);
+            }
+
+            SetRow(next, "Partida", runLabel, UiTheme.TextMuted);
 
             _primary.Label.text = "VOLVER A EMPEZAR";
             _primaryAction = () => { Hide(); onRestart?.Invoke(); };
