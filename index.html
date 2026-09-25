@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>UPTIME - Turno de Noche</title>
+  <meta name="description" content="Un rack. Un técnico. Toda la noche. Simulador de mantenimiento de un centro de datos.">
+  <link rel="icon" type="image/png" href="TemplateData/icon.png">
+
+  <!-- Tarjeta de compartición. og:image tiene que ser una URL absoluta: los rastreadores
+       de Slack, Discord, WhatsApp o Twitter no resuelven rutas relativas. Si el juego
+       cambia de dominio, og:url y og:image son lo único que hay que tocar aquí. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="UPTIME · Turno de Noche">
+  <meta property="og:title" content="UPTIME · Turno de Noche">
+  <meta property="og:description" content="Un rack. Un técnico. Toda la noche. Simulador de mantenimiento de un centro de datos en tiempo real.">
+  <meta property="og:url" content="https://izanvil.github.io/rack-and-ruin/">
+  <meta property="og:image" content="https://izanvil.github.io/rack-and-ruin/TemplateData/hero.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1600">
+  <meta property="og:image:height" content="900">
+  <meta property="og:image:alt" content="El rack bajo presión: seis máquinas en throttling, una averiada y 363 peticiones por segundo cayéndose al suelo.">
+  <meta name="twitter:card" content="summary_large_image">
+  <style>
+    :root{
+      --bg:#0B0E14; --panel:#10141C; --line:#2A3341;
+      --text:#E6EDF3; --muted:#8B98A8; --dim:#5C6878;
+      --accent:#38BDF8; --ok:#34D399; --warn:#FBBF24; --danger:#F87171;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      min-height:100dvh;gap:18px;padding:16px;overflow:hidden;
+      overscroll-behavior:none;
+    }
+    header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;text-align:center}
+    header img{width:44px;height:44px;border-radius:10px}
+    header .t{font-size:22px;font-weight:800;letter-spacing:.5px}
+    header .t small{display:block;font-size:11px;font-weight:700;color:var(--dim);letter-spacing:2px}
+    header .tag{color:var(--accent)}
+
+    /* Encuadre 16:9 que se adapta a la ventana sin deformar el juego */
+    #frame{
+      position:relative;width:min(96vw,calc((100dvh - 150px)*1.7778));
+      aspect-ratio:16/9;max-width:1600px;
+      border:1px solid var(--line);border-radius:14px;overflow:hidden;
+      background:var(--panel);box-shadow:0 24px 70px rgba(0,0,0,.55);
+    }
+    #unity-canvas{width:100%;height:100%;display:block;background:var(--bg);touch-action:none}
+
+    /* Carga */
+    #loader{
+      position:absolute;inset:0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:20px;background:var(--bg);
+      transition:opacity .4s ease;
+    }
+    #loader.hidden{opacity:0;pointer-events:none}
+    #loader .name{font-size:26px;font-weight:800;letter-spacing:1px}
+    #loader .name .tag{color:var(--accent)}
+    #bar{width:min(60%,320px);height:8px;border-radius:6px;background:#222A36;overflow:hidden}
+    #fill{height:100%;width:0;border-radius:6px;
+      background:linear-gradient(90deg,var(--ok),var(--accent));transition:width .2s ease}
+    #pct{font-size:12px;color:var(--muted);letter-spacing:1px}
+    .hint{font-size:12px;color:var(--dim)}
+
+    footer{display:flex;gap:18px;color:var(--dim);font-size:12px;flex-wrap:wrap;justify-content:center}
+    footer b{color:var(--muted);font-weight:700}
+    button#full{
+      background:transparent;border:1px solid var(--line);color:var(--muted);
+      border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:700;
+    }
+    button#full:hover{border-color:var(--accent);color:var(--accent)}
+    #err{display:none;max-width:560px;text-align:center;color:var(--danger);font-size:14px;line-height:1.5}
+
+    noscript .nojs{
+      display:block;max-width:560px;margin:24px auto 0;padding:24px;
+      border:1px solid var(--line);border-radius:14px;background:var(--panel);
+      text-align:center;line-height:1.6;font-size:14px;color:var(--muted);
+    }
+
+    @media (max-width:820px), (orientation:portrait){
+      body{padding:0;gap:0}
+      header,footer{display:none}
+      #frame{
+        width:100%;height:100dvh;max-width:none;aspect-ratio:auto;
+        border:0;border-radius:0;box-shadow:none;
+        padding:env(safe-area-inset-top) env(safe-area-inset-right)
+                env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="TemplateData/icon.png" alt="">
+    <div class="t">UPTIME <span class="tag">·</span> TURNO DE NOCHE<small>UN RACK · UN TÉCNICO · TODA LA NOCHE</small></div>
+  </header>
+
+  <div id="frame">
+    <canvas id="unity-canvas" width=1600 height=900 tabindex="-1"></canvas>
+    <div id="loader">
+      <div class="name">UPTIME <span class="tag">·</span> Turno de Noche</div>
+      <div id="bar"><div id="fill"></div></div>
+      <div id="pct">Cargando… 0%</div>
+      <div class="hint">La primera carga descarga el motor; tarda unos segundos.</div>
+    </div>
+    <div id="err"></div>
+  </div>
+
+  <noscript>
+    <style>#frame,footer{display:none}body{display:block;overflow:auto;padding:24px 16px}</style>
+    <div class="nojs">
+      <b>UPTIME</b> es un juego de Unity y necesita JavaScript y WebGL para ejecutarse.
+      Actívalos, o descarga la versión de escritorio para Linux desde el repositorio.
+    </div>
+  </noscript>
+
+  <footer>
+    <span><b>Espacio</b> pausa</span>
+    <span><b>1 2 3</b> velocidad</span>
+    <span><b>Tab</b> incidencia</span>
+    <span><b>M</b> mejoras</span>
+    <span><b>R E A P</b> acciones</span>
+    <button id="full">Pantalla completa ⤢</button>
+  </footer>
+
+  <script src="Build/779e6b31fc13c6f99293e413632d92dc.loader.js"></script>
+  <script>
+    var canvas = document.querySelector("#unity-canvas");
+    var loader = document.getElementById("loader");
+    var fill = document.getElementById("fill");
+    var pct = document.getElementById("pct");
+    var err = document.getElementById("err");
+
+    var AnchoCompacto = 820;
+
+    // Supersampling: el búfer de render se genera por encima del tamaño mostrado
+    // (2x-3x los píxeles CSS) y el navegador lo reduce. Así el texto de Unity queda
+    // nítido aunque la pantalla tenga devicePixelRatio = 1, que es donde uGUI con
+    // fuente dinámica se veía blando. Para esta UI ligera el coste de GPU es trivial;
+    // el tope de 3x evita excesos en pantallas 4K.
+    function ajustarNitidez(){
+      var rect = canvas.getBoundingClientRect();
+      var nativo = window.devicePixelRatio || 1;
+      var dpr = rect.width < AnchoCompacto
+        ? Math.min(nativo, 2)
+        : Math.min(Math.max(nativo, 2), 3);
+      var w = Math.round(rect.width * dpr);
+      var h = Math.round(rect.height * dpr);
+      if (w < 1 || h < 1) return;
+      if (canvas.width !== w || canvas.height !== h){
+        canvas.width = w;
+        canvas.height = h;
+      }
+    }
+
+    function arrancar(){
+      // Se ajusta la resolución ANTES de arrancar Unity: así el contexto gráfico
+      // se inicializa ya a la resolución supersampled y la primera imagen es
+      // nítida. (Antes se ajustaba después, y el primer render salía borroso.)
+      ajustarNitidez();
+
+      createUnityInstance(canvas, {
+        arguments: [],
+        dataUrl: "Build/022c32860ef520c1db0adfa5303b39cb.data.unityweb",
+        frameworkUrl: "Build/1307bb8da0c0624ea2a9574c88981de2.framework.js.unityweb",
+        codeUrl: "Build/3d752cd51a1c1b984af13e64e62ca2d7.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Izan",
+        productName: "UPTIME - Turno de Noche",
+        productVersion: "1.0",
+        // Tomamos control del tamaño del búfer para gestionar el DPI nosotros.
+        matchWebGLToCanvasSize: false,
+      }, function(progress){
+        var p = Math.round(progress*100);
+        fill.style.width = p + "%";
+        pct.textContent = "Cargando… " + p + "%";
+      }).then(function(instance){
+        loader.classList.add("hidden");
+        setTimeout(function(){ loader.style.display = "none"; }, 450);
+        document.getElementById("full").onclick = function(){
+          instance.SetFullscreen(1);
+        };
+        ajustarNitidez();
+        window.addEventListener("resize", ajustarNitidez);
+        // El foco en el canvas hace que el teclado llegue al juego sin un primer clic.
+        canvas.focus();
+      }).catch(function(message){
+        loader.style.display = "none";
+        err.style.display = "block";
+        err.textContent = "No se pudo iniciar el juego: " + message;
+      });
+    }
+
+    arrancar();
+  </script>
+</body>
+</html>
