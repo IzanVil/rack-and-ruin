@@ -16,7 +16,6 @@ namespace ServerGame.EditorTools
     ///         -screenshotOutput /ruta/capturas</summary>
     public static class ScreenshotTool
     {
-        ///
         readonly struct Shot
         {
             public readonly UiLayout Layout;
